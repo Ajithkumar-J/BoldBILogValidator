@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Bold Log Validator</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/BoldLogValidator.styles.css" asp-append-version="true" />
+</head>
+<body class="app-shell">
+    @{
+        var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    }
+    <header class="topbar">
+        <div class="app-frame topbar-shell">
+            <div class="topbar-branding">
+                <a class="brand-mark" asp-area="" asp-controller="Home" asp-action="Index">Bold Log Validator</a>
+                <div class="topbar-note">Readable service log validation, trace correlation, and HAR-assisted analysis</div>
+            </div>
+            <nav class="topbar-nav" aria-label="Primary">
+                <a class="topbar-link @(string.Equals(currentAction, "Index", StringComparison.OrdinalIgnoreCase) ? "topbar-link--active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Index">Analyzer</a>
+                <a class="topbar-link @(string.Equals(currentAction, "RawView", StringComparison.OrdinalIgnoreCase) ? "topbar-link--active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="RawView">Raw View</a>
+                <a class="topbar-link @(string.Equals(currentAction, "HarValidation", StringComparison.OrdinalIgnoreCase) ? "topbar-link--active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="HarValidation">Dashboard HAR Validation</a>
+            </nav>
+        </div>
+    </header>
+    <div class="app-frame">
+        <main role="main" class="pb-5">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="footer-shell">
+        <div class="app-frame footer-copy">
+            <span>Built for multi-service log folders, service-specific uploads, and correlation-aware investigation.</span>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

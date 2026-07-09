@@ -1,0 +1,187 @@
+@model BoldLogValidator.Models.HarRequestDetailsResult
+
+@{
+    var selectedApi = Model.SelectedApi;
+}
+
+<input type="hidden" data-har-selected-request-key value="@(Model.SelectedRequestKey ?? string.Empty)" />
+
+<div class="har-detail-stack">
+    <section class="panel-card">
+        <div class="panel-header">
+            <div>
+                <div class="eyebrow">Selected API Summary</div>
+                <h2>Request overview</h2>
+                <p>Focused metadata for the selected endpoint.</p>
+            </div>
+        </div>
+
+        @if (selectedApi == null)
+        {
+            <div class="empty-state">Select an API from the left to inspect the request summary.</div>
+        }
+        else
+        {
+            <div class="har-summary-grid">
+                <div class="context-readout">
+                    <span class="context-readout__label">Endpoint</span>
+                    <strong>@selectedApi.DisplayPath</strong>
+                </div>
+                <div class="context-readout">
+                    <span class="context-readout__label">Method</span>
+                    <strong>@selectedApi.Method</strong>
+                </div>
+                <div class="context-readout">
+                    <span class="context-readout__label">Status</span>
+                    <strong>@((selectedApi.StatusCode?.ToString()) ?? "-")</strong>
+                </div>
+                <div class="context-readout">
+                    <span class="context-readout__label">Duration</span>
+                    <strong>@selectedApi.DurationMs.ToString("0.#") ms</strong>
+                </div>
+                <div class="context-readout">
+                    <span class="context-readout__label">Correlation ID</span>
+                    <strong>@(selectedApi.CorrelationId ?? "Not present")</strong>
+                </div>
+                <div class="context-readout">
+                    <span class="context-readout__label">Trace ID</span>
+                    <strong>@(selectedApi.TraceId ?? "Not present")</strong>
+                </div>
+            </div>
+        }
+    </section>
+
+    <section class="panel-card">
+        <div class="panel-header">
+            <div>
+                <div class="eyebrow">Request / Headers / Payload</div>
+                <h2>Transport details</h2>
+                <p>Switch between request headers, payload, query string, and response headers.</p>
+            </div>
+        </div>
+
+        @if (selectedApi == null)
+        {
+            <div class="empty-state">Request details will appear after selecting an API.</div>
+        }
+        else
+        {
+            <div class="har-tabs">
+                <button type="button" class="har-tab-button har-tab-button--active" data-har-tab-target="request-headers">Headers</button>
+                <button type="button" class="har-tab-button" data-har-tab-target="request-payload">Payload</button>
+                <button type="button" class="har-tab-button" data-har-tab-target="request-query">Query</button>
+                <button type="button" class="har-tab-button" data-har-tab-target="response-headers">Response Headers</button>
+            </div>
+
+            <div class="har-tab-content">
+                <div class="har-tab-panel har-tab-panel--active" data-har-tab-panel="request-headers">
+                    @if (Model.SelectedRequestHeaders.Count == 0)
+                    {
+                        <div class="empty-state">No request headers were captured for this API.</div>
+                    }
+                    else
+                    {
+                        <div class="kv-grid">
+                            @foreach (var header in Model.SelectedRequestHeaders)
+                            {
+                                <div class="kv-row">
+                                    <span class="kv-key">@header.Name</span>
+                                    <span class="kv-value">@header.Value</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="har-tab-panel" data-har-tab-panel="request-payload">
+                    @if (string.IsNullOrWhiteSpace(Model.SelectedPayloadText))
+                    {
+                        <div class="empty-state">No request payload was present for this API.</div>
+                    }
+                    else if (Model.SelectedPayloadTree != null)
+                    {
+                        <div class="field-note mb-3">Payload decoded and re-formatted from JSON where needed.</div>
+                        <div class="json-tree">
+                            <partial name="_JsonTreeNode" model="Model.SelectedPayloadTree" />
+                        </div>
+                    }
+                    else
+                    {
+                        <pre class="details-content details-content--always-open">@Model.SelectedPayloadText</pre>
+                    }
+                </div>
+
+                <div class="har-tab-panel" data-har-tab-panel="request-query">
+                    @if (Model.SelectedQueryParameters.Count == 0)
+                    {
+                        <div class="empty-state">No query string values were captured for this API.</div>
+                    }
+                    else
+                    {
+                        <div class="kv-grid">
+                            @foreach (var query in Model.SelectedQueryParameters)
+                            {
+                                <div class="kv-row">
+                                    <span class="kv-key">@query.Name</span>
+                                    <span class="kv-value">@query.Value</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="har-tab-panel" data-har-tab-panel="response-headers">
+                    @if (Model.SelectedResponseHeaders.Count == 0)
+                    {
+                        <div class="empty-state">No response headers were captured for this API.</div>
+                    }
+                    else
+                    {
+                        <div class="kv-grid">
+                            @foreach (var header in Model.SelectedResponseHeaders)
+                            {
+                                <div class="kv-row">
+                                    <span class="kv-key">@header.Name</span>
+                                    <span class="kv-value">@header.Value</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+<section class="panel-card har-response-panel">
+    <div class="panel-header">
+        <div>
+            <div class="eyebrow">Formatted Response Explorer</div>
+            <h2>Decoded response tree</h2>
+            <p>Nested JSON is parsed and expanded so the `LoadDashboard` payload can be inspected by sections instead of as one raw text blob.</p>
+        </div>
+        @if (Model.SelectedResponseWasNestedDecoded)
+        {
+            <span class="status-chip">Nested JSON parsed</span>
+        }
+    </div>
+
+    @if (Model.SelectedResponseTree == null)
+    {
+        if (!string.IsNullOrWhiteSpace(Model.SelectedResponseText))
+        {
+            <pre class="details-content details-content--always-open">@Model.SelectedResponseText</pre>
+        }
+        else
+        {
+            <div class="empty-state">No response body was available for the selected API.</div>
+        }
+    }
+    else
+    {
+        <div class="field-note mb-3">Response body decoded and re-formatted from escaped JSON where needed.</div>
+        <div class="json-tree">
+            <partial name="_JsonTreeNode" model="Model.SelectedResponseTree" />
+        </div>
+    }
+</section>

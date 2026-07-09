@@ -1,0 +1,379 @@
+@model BoldLogValidator.Models.HomePageViewModel
+
+@{
+    ViewData["Title"] = "Analyzer";
+    var result = Model.Result;
+    var repeatedServices = result?.GroupedLogSummaries
+        .Select(static summary => summary.Service)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(static service => service)
+        .ToList() ?? [];
+    var statusTime = DateTime.Now.ToString("dd MMM yyyy, hh:mm:ss tt");
+}
+
+<section class="analyzer-dashboard-simple">
+    <aside class="dashboard-sidebar">
+        <form asp-action="Analyze" method="post" enctype="multipart/form-data" class="analysis-form dashboard-form">
+            @Html.AntiForgeryToken()
+            <input asp-for="Filter.UploadSessionId" type="hidden" />
+            <input asp-for="Filter.BrowserTimeZone" type="hidden" />
+            <input asp-for="Filter.FromUtc" type="hidden" />
+            <input asp-for="Filter.ToUtc" type="hidden" />
+
+            <div class="dashboard-form__scroll">
+                <section class="sidebar-card">
+                    <div class="sidebar-card__header">
+                        <div class="section-kicker">Source</div>
+                        <span class="mini-status-chip">Cached Upload Active</span>
+                    </div>
+
+                    <label asp-for="Filter.LocalLogPath" class="form-label">Local Log Path</label>
+                    <div class="input-with-trail">
+                        <input asp-for="Filter.LocalLogPath" class="form-control" placeholder="C:\BoldServices\app_data\logs" />
+                        <span class="input-trail-icon">[]</span>
+                    </div>
+
+                    <div class="upload-block">
+                        <label class="form-label" for="logFiles">Or upload logs folder</label>
+                        <input id="logFiles" name="Filter.LogFiles" type="file" class="form-control" webkitdirectory directory multiple />
+                    </div>
+
+                    <div class="upload-block">
+                        <label class="form-label" for="harFile">Optionally upload HAR file</label>
+                        <input id="harFile" name="Filter.HarFile" type="file" class="form-control" accept=".har,.json" />
+                    </div>
+                </section>
+
+                <section class="sidebar-card">
+                    <div class="sidebar-card__header">
+                        <div class="section-kicker">Time Range</div>
+                        <span class="section-meta">(Browser Time: @((result?.BrowserTimeZone) ?? "Asia/Calcutta"))</span>
+                    </div>
+
+                    <div class="sidebar-grid sidebar-grid--time">
+                        <div>
+                            <label asp-for="Filter.From" class="form-label">From</label>
+                            <div class="datetime-field">
+                                <input asp-for="Filter.From"
+                                       type="datetime-local"
+                                       class="form-control"
+                                       value="@(Model.Filter.From?.ToString("yyyy-MM-ddTHH:mm"))" />
+                                <button type="button" class="input-clear-button" data-clear-target="Filter_From" aria-label="Clear from time">Clear</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label asp-for="Filter.To" class="form-label">To</label>
+                            <div class="datetime-field">
+                                <input asp-for="Filter.To"
+                                       type="datetime-local"
+                                       class="form-control"
+                                       value="@(Model.Filter.To?.ToString("yyyy-MM-ddTHH:mm"))" />
+                                <button type="button" class="input-clear-button" data-clear-target="Filter_To" aria-label="Clear to time">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field-note">Filtered using your local timezone.</div>
+                </section>
+
+                <section class="sidebar-card">
+                    <div class="sidebar-card__header">
+                        <div class="section-kicker">Identifiers</div>
+                    </div>
+
+                    <label asp-for="Filter.CorrelationId" class="form-label">Correlation ID</label>
+                    <input asp-for="Filter.CorrelationId" class="form-control" placeholder="Exact correlation id" />
+
+                    <label asp-for="Filter.TraceId" class="form-label">Trace ID</label>
+                    <input asp-for="Filter.TraceId" class="form-control" placeholder="Exact trace id" />
+
+                    <label asp-for="Filter.SpanId" class="form-label">Span ID <span class="optional-note">(optional)</span></label>
+                    <input asp-for="Filter.SpanId" class="form-control" placeholder="e.g. 5da55803c9f77c39" />
+
+                    <label asp-for="Filter.Keyword" class="form-label">Keyword Search</label>
+                    <input asp-for="Filter.Keyword" class="form-control" placeholder="Search inside log message text" />
+                </section>
+
+                <section class="sidebar-card">
+                    <div class="sidebar-card__header">
+                        <div class="section-kicker">Severity & Log Types</div>
+                    </div>
+
+                    <label class="toggle-list-card">
+                        <span>
+                            <strong>Include Error & Fatal logs</strong>
+                            <small>Analyze error and fatal level entries</small>
+                        </span>
+                        <input asp-for="Filter.IncludeErrors" class="form-check-input toggle-switch" />
+                    </label>
+
+                    <label class="toggle-list-card">
+                        <span>
+                            <strong>Include Debug & Info logs</strong>
+                            <small>Include debug and informational traces</small>
+                        </span>
+                        <input asp-for="Filter.IncludeDebugInfo" class="form-check-input toggle-switch" />
+                    </label>
+
+                    <label class="toggle-list-card">
+                        <span>
+                            <strong>Readable linked failures</strong>
+                            <small>Show cross-service grouped insights and explanations</small>
+                        </span>
+                        <input asp-for="Filter.EnableConcurrentInsights" class="form-check-input toggle-switch" />
+                    </label>
+                </section>
+
+                <section class="sidebar-card sidebar-card--plain">
+                    <label asp-for="Filter.AnalysisMode" class="form-label">Analysis Mode</label>
+                    <select asp-for="Filter.AnalysisMode" class="form-select">
+                        <option value="overall">Overall Validation</option>
+                        <option value="targeted">Targeted Validation</option>
+                    </select>
+
+                    <label asp-for="Filter.SpecificService" class="form-label">Specific Service Hint</label>
+                    <input asp-for="Filter.SpecificService" class="form-control" placeholder="Example: bi.dataservice" />
+                </section>
+            </div>
+
+            <div class="form-actions dashboard-form__actions dashboard-form__actions--sticky">
+                <button type="submit" class="btn btn-primary btn-lg w-100">Analyze Logs</button>
+                <div class="dashboard-form__subnote">Results will use the cached upload above.</div>
+                <div id="analyzeStatusText" class="action-note d-none" aria-live="polite"></div>
+            </div>
+        </form>
+    </aside>
+
+    <div class="dashboard-main">
+        <section class="metric-strip">
+            <article class="metric-tile metric-tile--blue">
+                <div class="metric-tile__icon">F</div>
+                <div>
+                    <div class="metric-label">Uploaded Files</div>
+                    <strong>@(result?.UploadedFileCount ?? 0)</strong>
+                    <div class="metric-sub">Folders / HAR</div>
+                </div>
+            </article>
+            <article class="metric-tile metric-tile--green">
+                <div class="metric-tile__icon">D</div>
+                <div>
+                    <div class="metric-label">Parsed Entries</div>
+                    <strong>@(result?.ParsedEntryCount ?? 0)</strong>
+                    <div class="metric-sub">Total log lines</div>
+                </div>
+            </article>
+            <article class="metric-tile metric-tile--violet">
+                <div class="metric-tile__icon">M</div>
+                <div>
+                    <div class="metric-label">Matching Entries</div>
+                    <strong>@(result?.FilteredEntryCount ?? 0)</strong>
+                    <div class="metric-sub">After filters</div>
+                </div>
+            </article>
+            <article class="metric-tile metric-tile--red">
+                <div class="metric-tile__icon">!</div>
+                <div>
+                    <div class="metric-label">Matching Errors</div>
+                    <strong>@(result?.FilteredErrorCount ?? 0)</strong>
+                    <div class="metric-sub">Errors / Fatal</div>
+                </div>
+            </article>
+            <article class="metric-tile metric-tile--cyan">
+                <div class="metric-tile__icon">S</div>
+                <div>
+                    <div class="metric-label">Services Covered</div>
+                    <strong>@(result?.ServiceCount ?? 0)</strong>
+                    <div class="metric-sub">Unique services</div>
+                </div>
+            </article>
+            <article class="metric-tile metric-tile--indigo">
+                <div class="metric-tile__icon">H</div>
+                <div>
+                    <div class="metric-label">HAR APIs</div>
+                    <strong>@(result?.HarApis.Count ?? 0)</strong>
+                    <div class="metric-sub">Matched requests</div>
+                </div>
+            </article>
+        </section>
+
+        <section class="status-bar">
+            <div class="status-bar__chips">
+                <span class="status-chip">Browser Timezone: @((result?.BrowserTimeZone) ?? "Asia/Calcutta")</span>
+                <span class="status-chip">Cached Upload Active: @(string.IsNullOrWhiteSpace(Model.Filter.UploadSessionId) ? "No cached upload yet" : Model.Filter.UploadSessionId)</span>
+                <span class="status-chip">HAR Matched</span>
+            </div>
+            <div class="status-bar__meta">
+                <span>Last analyzed: @statusTime</span>
+                <a asp-action="RawView"
+                   asp-route-UseLocalLogPath="@Model.Filter.UseLocalLogPath"
+                   asp-route-LocalLogPath="@Model.Filter.LocalLogPath"
+                   asp-route-UploadSessionId="@Model.Filter.UploadSessionId"
+                   class="status-link">Open Raw View</a>
+            </div>
+        </section>
+
+        <section class="summary-panel">
+            <div class="summary-panel__header">
+                <div>
+                    <h2>Entire Summary</h2>
+                    <p>Overall view of matched log entries, service spread, linked failures, and request correlation.</p>
+                </div>
+            </div>
+
+            @if (result?.Notes.Count > 0)
+            {
+                <section class="note-stack">
+                    @foreach (var note in result.Notes)
+                    {
+                        <div class="note-card">@note</div>
+                    }
+                </section>
+            }
+
+            <section class="summary-grid-panels">
+                <section class="dashboard-panel">
+                    <div class="dashboard-panel__header">
+                        <div>
+                            <h2>Service Summary</h2>
+                            <p>Overview of matched log entries grouped by service.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-align-middle data-table data-table--service">
+                            <thead>
+                                <tr>
+                                    <th>Service</th>
+                                    <th>Total Entries</th>
+                                    <th>Matching Entries</th>
+                                    <th>Errors</th>
+                                    <th>Warnings</th>
+                                    <th>Distinct Corr. IDs</th>
+                                    <th>Top Error</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (result == null || result.ServiceSummaries.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="7">Run the first analysis to populate the service summary.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var summary in result.ServiceSummaries)
+                                    {
+                                        <tr>
+                                            <td><span class="service-dot service-dot--teal"></span><span class="service-name">@summary.Service</span></td>
+                                            <td>@summary.TotalEntries</td>
+                                            <td>@summary.TotalEntries</td>
+                                            <td class="cell-error">@summary.ErrorCount</td>
+                                            <td class="cell-warn">@summary.WarningCount</td>
+                                            <td>@summary.DistinctCorrelationCount</td>
+                                            <td>@summary.TopErrorSummary</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="dashboard-panel">
+                    <div class="dashboard-panel__header">
+                        <div>
+                            <h2>Cross-Service Linked Failures</h2>
+                            <p>Failures that appear across multiple services in the same request flow.</p>
+                        </div>
+                    </div>
+
+                    @if (result == null || result.ConcurrentInsights.Count == 0)
+                    {
+                        <div class="empty-state">No linked cross-service failures matched the current filters.</div>
+                    }
+                    else
+                    {
+                        <div class="linked-list">
+                            @foreach (var insight in result.ConcurrentInsights.Take(6))
+                            {
+                                <article class="linked-item">
+                                    <div class="linked-item__left">
+                                        <span class="linked-icon">!</span>
+                                        <div>
+                                            <div class="linked-title">@insight.Summary</div>
+                                            <div class="linked-services">@insight.Services</div>
+                                            <div class="linked-meta">Occurrences: @insight.OccurrenceCount</div>
+                                        </div>
+                                    </div>
+                                    <span class="linked-count">@insight.OccurrenceCount</span>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+            </section>
+        </section>
+
+        <section class="logs-panel">
+            <div class="logs-panel__header">
+                <div>
+                    <h2>Repeated Logs</h2>
+                    <p>Choose a service to see every grouped log message for that service, sorted from the highest count down to single occurrences.</p>
+                </div>
+                <div class="detail-filter detail-filter--wide">
+                    <label class="form-label" for="repeatedServiceFilter">Service</label>
+                    <select id="repeatedServiceFilter" class="form-select detail-service-filter" data-target-group="repeated-logs">
+                        <option value="all">All services</option>
+                        @foreach (var service in repeatedServices)
+                        {
+                            <option value="@service">@service</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            @if (result == null || result.GroupedLogSummaries.Count == 0)
+            {
+                <div class="empty-state">No grouped logs are available for the current analysis.</div>
+            }
+            else
+            {
+                <div class="repeated-log-list filterable-group" data-group="repeated-logs">
+                    @foreach (var groupedLog in result.GroupedLogSummaries)
+                    {
+                        <article class="repeated-log-item filterable-item" data-services="@groupedLog.Service">
+                            <div class="repeated-log-item__header">
+                                <div class="repeated-log-item__title">@groupedLog.Signature</div>
+                                <span class="pill-number">@groupedLog.Count</span>
+                            </div>
+                            <div class="repeated-log-item__meta">
+                                <span>Service: @groupedLog.Service</span>
+                                <span>Severity: @groupedLog.Severity</span>
+                            </div>
+                            <details class="details-block">
+                                <summary>Show entire message</summary>
+                                <div class="details-content">@groupedLog.ExampleMessage</div>
+                            </details>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+</section>
+
+<div id="analysisLoadingOverlay" class="loading-overlay d-none" aria-hidden="true">
+    <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <h3 id="loadingTitle">Uploading and analyzing logs...</h3>
+        <p id="loadingDescription">The app is saving the selected files, reading the entries, correlating identifiers, and building the summary. Please wait until the upload and analysis complete.</p>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        window.boldLogValidator = {
+            browserTimeZone: "@Model.Result?.BrowserTimeZone"
+        };
+    </script>
+}

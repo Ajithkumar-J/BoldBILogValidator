@@ -1,0 +1,264 @@
+@model BoldLogValidator.Models.HarValidationPageViewModel
+
+@{
+    ViewData["Title"] = "Dashboard HAR Validation";
+    var result = Model.Result;
+    var selectedApi = result?.SelectedApi;
+}
+
+<form asp-action="HarValidation" method="post" enctype="multipart/form-data" class="har-validation-form">
+    @Html.AntiForgeryToken()
+    <input asp-for="Filter.BrowserTimeZone" type="hidden" />
+    <input asp-for="Filter.FromUtc" type="hidden" />
+    <input asp-for="Filter.ToUtc" type="hidden" />
+    <input asp-for="Filter.SelectedRequestKey" type="hidden" />
+
+    <section class="workspace-shell har-workspace">
+        <aside class="filter-rail har-filter-rail">
+            <section class="rail-card rail-card--sticky">
+                <div class="har-filter-rail__scroll">
+                    <div class="rail-card__header">
+                        <div>
+                            <div class="eyebrow">Dashboard HAR Validation</div>
+                            <h2>HAR Source & Filters</h2>
+                            <p>Upload one HAR file, filter API traffic, and inspect selected requests with decoded response content.</p>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-group__title">HAR Source</div>
+                        <label class="form-label" for="harValidationFile">Upload HAR File</label>
+                        <input id="harValidationFile" name="Filter.HarFile" type="file" class="form-control" accept=".har,.json" />
+                        <div class="field-note">@(string.IsNullOrWhiteSpace(result?.ActiveHarFileName) ? "No HAR selected yet." : $"Current HAR: {result.ActiveHarFileName}")</div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-group__title">Dashboard Context</div>
+                        <div class="context-readout">
+                            <span class="context-readout__label">Environment</span>
+                            <strong class="context-readout__value">@(result?.EnvironmentLabel ?? "Waiting for HAR")</strong>
+                        </div>
+                        <div class="context-readout">
+                            <span class="context-readout__label">Dashboard Path</span>
+                            <strong class="context-readout__value context-readout__value--wrap">@(result?.DashboardPath ?? "Will appear after HAR parsing")</strong>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-group__title">Search & API Filters</div>
+
+                        <label asp-for="Filter.Keyword" class="form-label">Keyword Search</label>
+                        <input asp-for="Filter.Keyword" class="form-control" placeholder="Search endpoint, payload, or response text" />
+
+                        <label asp-for="Filter.ApiCategory" class="form-label">API Type</label>
+                        <select asp-for="Filter.ApiCategory" class="form-select">
+                            <option value="all">All APIs</option>
+                            @foreach (var option in result?.CategoryOptions ?? [])
+                            {
+                                <option value="@option">@option</option>
+                            }
+                        </select>
+
+                        <label asp-for="Filter.Method" class="form-label">Method</label>
+                        <select asp-for="Filter.Method" class="form-select">
+                            <option value="all">All methods</option>
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                        </select>
+
+                        <label asp-for="Filter.StatusFamily" class="form-label">Status Group</label>
+                        <select asp-for="Filter.StatusFamily" class="form-select">
+                            <option value="all">All status codes</option>
+                            <option value="2xx">2xx</option>
+                            <option value="3xx">3xx</option>
+                            <option value="4xx">4xx</option>
+                            <option value="5xx">5xx</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-group__title">Trace Context</div>
+
+                        <label asp-for="Filter.CorrelationId" class="form-label">Correlation ID</label>
+                        <input asp-for="Filter.CorrelationId" class="form-control" placeholder="Exact correlation id" />
+
+                        <label asp-for="Filter.TraceId" class="form-label">Trace ID</label>
+                        <input asp-for="Filter.TraceId" class="form-control" placeholder="Exact trace id" />
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-group__title">Time Range</div>
+                        <div class="field-note mb-2">Browser timezone: @((result?.BrowserTimeZone) ?? "Asia/Calcutta")</div>
+
+                        <label asp-for="Filter.From" class="form-label">From</label>
+                        <div class="datetime-field">
+                            <input asp-for="Filter.From" type="datetime-local" class="form-control" value="@(Model.Filter.From?.ToString("yyyy-MM-ddTHH:mm"))" />
+                            <button type="button" class="input-clear-button" data-clear-target="Filter_From" aria-label="Clear from time">Clear</button>
+                        </div>
+
+                        <label asp-for="Filter.To" class="form-label">To</label>
+                        <div class="datetime-field">
+                            <input asp-for="Filter.To" type="datetime-local" class="form-control" value="@(Model.Filter.To?.ToString("yyyy-MM-ddTHH:mm"))" />
+                            <button type="button" class="input-clear-button" data-clear-target="Filter_To" aria-label="Clear to time">Clear</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions har-filter-rail__actions">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Analyze HAR</button>
+                    <div id="harAnalyzeStatusText" class="action-note d-none" aria-live="polite"></div>
+                </div>
+            </section>
+        </aside>
+
+        <div class="results-pane">
+            <section class="metric-strip har-metric-strip">
+                <article class="metric-tile metric-tile--blue">
+                    <div class="metric-tile__icon">A</div>
+                    <div>
+                        <div class="metric-label">Total APIs</div>
+                        <strong>@(result?.TotalApis ?? 0)</strong>
+                        <div class="metric-sub">Matched entries</div>
+                    </div>
+                </article>
+                <article class="metric-tile metric-tile--green">
+                    <div class="metric-tile__icon">E</div>
+                    <div>
+                        <div class="metric-label">Distinct Endpoints</div>
+                        <strong>@(result?.DistinctEndpoints ?? 0)</strong>
+                        <div class="metric-sub">Unique paths</div>
+                    </div>
+                </article>
+                <article class="metric-tile metric-tile--red">
+                    <div class="metric-tile__icon">!</div>
+                    <div>
+                        <div class="metric-label">Errors</div>
+                        <strong>@(result?.ErrorApis ?? 0)</strong>
+                        <div class="metric-sub">4xx / 5xx</div>
+                    </div>
+                </article>
+                <article class="metric-tile metric-tile--amber">
+                    <div class="metric-tile__icon">S</div>
+                    <div>
+                        <div class="metric-label">Slow APIs</div>
+                        <strong>@(result?.SlowApis ?? 0)</strong>
+                        <div class="metric-sub">1s+ duration</div>
+                    </div>
+                </article>
+                <article class="metric-tile metric-tile--violet">
+                    <div class="metric-tile__icon">L</div>
+                    <div>
+                        <div class="metric-label">LoadDashboard Hits</div>
+                        <strong>@(result?.LoadDashboardHits ?? 0)</strong>
+                        <div class="metric-sub">Designer load API</div>
+                    </div>
+                </article>
+                <article class="metric-tile metric-tile--cyan">
+                    <div class="metric-tile__icon">T</div>
+                    <div>
+                        <div class="metric-label">Avg Response Time</div>
+                        <strong>@((result?.AverageResponseTimeMs ?? 0).ToString("0.#"))</strong>
+                        <div class="metric-sub">Milliseconds</div>
+                    </div>
+                </article>
+            </section>
+
+            <section class="status-bar">
+                <div class="status-bar__chips">
+                    @foreach (var chip in result?.StatusChips ?? [])
+                    {
+                        <span class="status-chip">@chip</span>
+                    }
+                </div>
+                <div class="status-bar__meta">
+                    @foreach (var filter in result?.AppliedFilters ?? [])
+                    {
+                        <span>@filter</span>
+                    }
+                </div>
+            </section>
+
+            @if (result?.Notes.Count > 0)
+            {
+                <section class="note-stack">
+                    @foreach (var note in result.Notes)
+                    {
+                        <div class="note-card">@note</div>
+                    }
+                </section>
+            }
+
+            <section class="har-layout">
+                <section class="panel-card har-list-panel">
+                    <div class="panel-header">
+                        <div>
+                            <div class="eyebrow">API Timeline & Filters</div>
+                            <h2>Filtered API requests</h2>
+                            <p>Inspect all matched dashboard APIs and open one request at a time in the detail panels.</p>
+                        </div>
+                    </div>
+
+                    @if (result == null || result.FilteredApis.Count == 0)
+                    {
+                        <div class="empty-state">No API entries are available for the current HAR filters.</div>
+                    }
+                    else
+                    {
+                        <div class="har-api-list">
+                            @foreach (var api in result.FilteredApis)
+                            {
+                                var isActive = string.Equals(api.Key, Model.Filter.SelectedRequestKey, StringComparison.Ordinal);
+                                <button type="button"
+                                        class="har-api-item @(isActive ? "har-api-item--active" : string.Empty)"
+                                        data-har-select
+                                        data-request-key="@api.Key">
+                                    <div class="har-api-item__top">
+                                        <span class="har-method har-method--@api.Method.ToLowerInvariant()">@api.Method</span>
+                                        <span class="har-status har-status--@((api.StatusCode ?? 0) >= 400 ? "error" : "ok")">@((api.StatusCode?.ToString()) ?? "-")</span>
+                                        <span class="har-duration">@api.DurationMs.ToString("0.#") ms</span>
+                                    </div>
+                                    <div class="har-api-item__path">@api.DisplayPath</div>
+                                    <div class="har-api-item__meta">
+                                        <span>@api.ContentType</span>
+                                        <span>@api.Category</span>
+                                        @if (api.IsLoadDashboard)
+                                        {
+                                            <span class="service-pill">LoadDashboard</span>
+                                        }
+                                    </div>
+                                </button>
+                            }
+                        </div>
+                    }
+                </section>
+
+                <div id="harRequestDetailsRoot" class="har-request-details-root" data-har-details-endpoint="@Url.Action("HarRequestDetails", "Home")">
+                    <partial name="_HarRequestDetails" model='new BoldLogValidator.Models.HarRequestDetailsResult
+                    {
+                        SelectedRequestKey = result?.Filter.SelectedRequestKey,
+                        SelectedApi = result?.SelectedApi,
+                        SelectedRequestHeaders = result?.SelectedRequestHeaders ?? [],
+                        SelectedResponseHeaders = result?.SelectedResponseHeaders ?? [],
+                        SelectedQueryParameters = result?.SelectedQueryParameters ?? [],
+                        SelectedPayloadText = result?.SelectedPayloadText,
+                        SelectedPayloadTree = result?.SelectedPayloadTree,
+                        SelectedPayloadWasNestedDecoded = result?.SelectedPayloadWasNestedDecoded ?? false,
+                        SelectedResponseText = result?.SelectedResponseText,
+                        SelectedResponseTree = result?.SelectedResponseTree,
+                        SelectedResponseWasNestedDecoded = result?.SelectedResponseWasNestedDecoded ?? false
+                    }' />
+                </div>
+            </section>
+        </div>
+    </section>
+</form>
+
+<div id="analysisLoadingOverlay" class="loading-overlay d-none" aria-hidden="true">
+    <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <h3 id="loadingTitle">Loading HAR details...</h3>
+        <p id="loadingDescription">The app is reading the HAR, applying your filters, and preparing the selected API request details. Please wait.</p>
+    </div>
+</div>

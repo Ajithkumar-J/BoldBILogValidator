@@ -1,0 +1,55 @@
+@model BoldLogValidator.Models.JsonTreeNode
+
+@if (Model.Children.Count > 0)
+{
+    <details class="json-tree-node"
+             open="@Model.IsExpandedByDefault"
+             data-json-node
+             data-json-key="@Model.Key"
+             data-json-type="@Model.NodeType">
+        <summary>
+            <span class="json-tree-node__key">@Model.Key</span>
+            <span class="json-tree-node__type">@Model.NodeType</span>
+            @if (!string.IsNullOrWhiteSpace(Model.ValuePreview))
+            {
+                <span class="json-tree-node__preview"
+                      data-json-preview
+                      data-json-original-preview="@Model.ValuePreview">@Model.ValuePreview</span>
+            }
+        </summary>
+        <div class="json-tree-node__tools">
+            <div class="json-tree-node__actions">
+                <button type="button" class="json-tree-action" data-json-expand>Expand all</button>
+                <button type="button" class="json-tree-action" data-json-collapse>Collapse all</button>
+            </div>
+            <div class="json-tree-node__filters">
+                <select class="json-tree-filter-select" data-json-filter-property>
+                    <option value="">Choose property</option>
+                </select>
+                <select class="json-tree-filter-select json-tree-filter-select--operator" data-json-filter-operator>
+                    <option value="equals">Equals</option>
+                    <option value="contains">Contains</option>
+                </select>
+                <input type="text" class="json-tree-search-input" data-json-filter-value placeholder="Enter value" />
+                <button type="button" class="json-tree-action" data-json-search-clear>Clear</button>
+            </div>
+        </div>
+        <div class="json-tree-node__children">
+            @foreach (var child in Model.Children)
+            {
+                <partial name="_JsonTreeNode" model="child" />
+            }
+        </div>
+    </details>
+}
+else
+{
+    <div class="json-tree-leaf"
+         data-json-leaf
+         data-json-key="@Model.Key"
+         data-json-value="@Model.ValuePreview"
+         data-json-search-text="@($"{Model.Key} {Model.ValuePreview}")">
+        <span class="json-tree-node__key">@Model.Key</span>
+        <span class="json-tree-node__preview">@Model.ValuePreview</span>
+    </div>
+}

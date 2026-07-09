@@ -1,0 +1,203 @@
+@model BoldLogValidator.Models.RawLogViewModel
+
+@{
+    ViewData["Title"] = "Raw View";
+}
+
+<section class="workspace-intro workspace-intro--compact">
+    <div>
+        <div class="eyebrow">Raw View</div>
+        <h1>Read raw log files like a workspace notepad.</h1>
+        <p>Choose a service, open a file, or search across all cached or local logs without leaving the validator app.</p>
+    </div>
+    <div class="workspace-intro__chips">
+        <span class="hero-chip">@(!string.IsNullOrWhiteSpace(Model.ActiveSourceLabel) ? Model.ActiveSourceLabel : "Raw source")</span>
+        @if (!string.IsNullOrWhiteSpace(Model.UploadSessionId))
+        {
+            <span class="hero-chip">Cached session: @Model.UploadSessionId</span>
+        }
+        <a asp-action="Index" class="hero-chip hero-chip--link">Back To Analyzer</a>
+    </div>
+</section>
+
+<section class="workspace-shell">
+    <aside class="filter-rail">
+        <section class="rail-card rail-card--sticky">
+            <div class="rail-card__header">
+                <div>
+                    <h2>Raw Controls</h2>
+                    <p>Switch between full file reading and cross-file text search.</p>
+                </div>
+            </div>
+
+            <form asp-action="RawView" method="get" class="analysis-form">
+                <input asp-for="Filter.UploadSessionId" type="hidden" />
+
+                <div class="control-group">
+                    <div class="control-group__title">Source</div>
+                    <label class="toggle-card">
+                        <input asp-for="Filter.UseLocalLogPath" class="form-check-input" />
+                        <span>
+                            <strong>Use local installed logs</strong>
+                            <small>Turn this off to read the cached uploaded logs from the analyzer page.</small>
+                        </span>
+                    </label>
+
+                    <label asp-for="Filter.LocalLogPath" class="form-label">Local Log Path</label>
+                    <input asp-for="Filter.LocalLogPath" class="form-control" placeholder="Example: C:\BoldServices\app_data\logs" />
+                    <div class="field-note">Current source: @(string.IsNullOrWhiteSpace(Model.ActiveSourcePath) ? "Not resolved yet" : Model.ActiveSourcePath)</div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-group__title">Selection</div>
+
+                    <label asp-for="Filter.SelectedService" class="form-label">Service</label>
+                    <select asp-for="Filter.SelectedService" class="form-select">
+                        <option value="">All services</option>
+                        @foreach (var service in Model.ServiceOptions)
+                        {
+                            <option value="@service">@service</option>
+                        }
+                    </select>
+
+                    <label asp-for="Filter.SelectedFile" class="form-label">File</label>
+                    <select asp-for="Filter.SelectedFile" class="form-select">
+                        <option value="">Choose a file</option>
+                        @foreach (var file in Model.FileOptions)
+                        {
+                            <option value="@file.Value">@file.Label</option>
+                        }
+                    </select>
+
+                    <label asp-for="Filter.SearchTerm" class="form-label">Search Text</label>
+                    <input asp-for="Filter.SearchTerm" class="form-control" placeholder="Search any text across logs or inside one file" />
+
+                    <label class="toggle-card toggle-card--compact">
+                        <input asp-for="Filter.SearchAllFiles" class="form-check-input" />
+                        <span>
+                            <strong>Search across all matching files</strong>
+                            <small>Leave off to focus the search on the selected file only.</small>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Open Raw View</button>
+                    <a asp-action="Index"
+                       asp-route-UseLocalLogPath="@Model.Filter.UseLocalLogPath"
+                       asp-route-LocalLogPath="@Model.Filter.LocalLogPath"
+                       asp-route-UploadSessionId="@Model.Filter.UploadSessionId"
+                       class="btn btn-outline-secondary btn-lg w-100 mt-2">Back To Analyzer</a>
+                </div>
+            </form>
+        </section>
+    </aside>
+
+    <div class="results-pane">
+        <section class="summary-grid summary-grid--compact">
+            <article class="metric-card metric-card--accent">
+                <span class="metric-label">Services</span>
+                <strong>@Model.ServiceOptions.Count</strong>
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Files</span>
+                <strong>@Model.FileOptions.Count</strong>
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Search Hits</span>
+                <strong>@Model.SearchHits.Count</strong>
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Mode</span>
+                <strong>@(Model.IsSearchResult ? "Search" : "File View")</strong>
+            </article>
+        </section>
+
+        <section class="result-shell">
+            <div class="result-header">
+                <div>
+                    <div class="eyebrow">Plain Text Inspection</div>
+                    <h2>Raw log viewer</h2>
+                    <p>Use this page to inspect one file fully or search across services without parsing or grouping.</p>
+                </div>
+                <div class="status-chip-row">
+                    @if (!string.IsNullOrWhiteSpace(Model.Filter.SelectedService))
+                    {
+                        <span class="hero-chip">Service: @Model.Filter.SelectedService</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Filter.SelectedFile))
+                    {
+                        <span class="hero-chip">File: @Model.Filter.SelectedFile</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Filter.SearchTerm))
+                    {
+                        <span class="hero-chip">Search: @Model.Filter.SearchTerm</span>
+                    }
+                </div>
+            </div>
+
+            @if (Model.Notes.Count > 0)
+            {
+                <section class="note-stack">
+                    @foreach (var note in Model.Notes)
+                    {
+                        <div class="note-card">@note</div>
+                    }
+                </section>
+            }
+
+            @if (Model.IsSearchResult)
+            {
+                <section class="panel-card panel-card--soft">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Search Results</h2>
+                            <p>Matching lines across the selected service scope and file scope.</p>
+                        </div>
+                    </div>
+
+                    @if (Model.SearchHits.Count == 0)
+                    {
+                        <div class="empty-state">No matching lines were found for the current search term.</div>
+                    }
+                    else
+                    {
+                        <div class="entry-list">
+                            @foreach (var hit in Model.SearchHits)
+                            {
+                                <article class="entry-card">
+                                    <div class="entry-head">
+                                        <span class="service-pill">@hit.Service</span>
+                                        <span class="count-badge">Line @hit.LineNumber</span>
+                                    </div>
+                                    <div class="entry-path">@hit.RelativePath</div>
+                                    <div class="details-content details-content--always-open">@hit.LineText</div>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+            }
+            else
+            {
+                <section class="panel-card panel-card--soft">
+                    <div class="panel-header">
+                        <div>
+                            <h2>File Content</h2>
+                            <p>Choose a service and file to read the full text content directly in the browser.</p>
+                        </div>
+                    </div>
+
+                    @if (string.IsNullOrWhiteSpace(Model.FileContent))
+                    {
+                        <div class="empty-state">Choose a file from the left side to load the raw content.</div>
+                    }
+                    else
+                    {
+                        <pre class="raw-file-viewer">@Model.FileContent</pre>
+                    }
+                </section>
+            }
+        </section>
+    </div>
+</section>
