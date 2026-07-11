@@ -25,6 +25,59 @@ function formatUtcElement(element, formatter) {
   element.textContent = formatter.format(date);
 }
 
+function escapeHtml(value) {
+  return (value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function initializeCopyButtons(root) {
+  const scope = root instanceof HTMLElement || root instanceof Document ? root : document;
+  const buttons = scope.querySelectorAll(".copy-button");
+  buttons.forEach((button) => {
+    if (button.dataset.copyInitialized === "true") {
+      return;
+    }
+
+    button.dataset.copyInitialized = "true";
+    button.addEventListener("click", async () => {
+      const detailsWrapper = button.closest(".details-content-wrap");
+      const detailsContent = detailsWrapper ? detailsWrapper.querySelector(".details-content") : null;
+      const text = detailsContent ? detailsContent.textContent || "" : button.getAttribute("data-copy-text") || "";
+      if (!text.length) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        const originalText = button.textContent;
+        button.textContent = "Copied";
+        window.setTimeout(() => {
+          button.textContent = originalText;
+        }, 1200);
+      } catch {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.setAttribute("readonly", "readonly");
+        textArea.style.position = "absolute";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        const originalText = button.textContent;
+        button.textContent = "Copied";
+        window.setTimeout(() => {
+          button.textContent = originalText;
+        }, 1200);
+      }
+    });
+  });
+}
+
 function normalizeJsonSearchText(value) {
   return (value || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -370,10 +423,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitButton = form ? form.querySelector('button[type="submit"]') : null;
   const analyzeStatusText = document.getElementById("analyzeStatusText") || document.getElementById("harAnalyzeStatusText");
   const detailFilters = document.querySelectorAll(".detail-service-filter");
+  const repeatedQueryControls = document.querySelectorAll(".repeated-query-control");
+  const timelineQueryControls = document.querySelectorAll(".timeline-query-control");
   const clearButtons = document.querySelectorAll(".input-clear-button");
   const harSelectButtons = document.querySelectorAll("[data-har-select]");
   const harRequestDetailsRoot = document.getElementById("harRequestDetailsRoot");
+  const repeatedLogList = document.getElementById("repeatedLogList");
+  const repeatedLogScroll = document.getElementById("repeatedLogScroll");
+  const repeatedLoadTrigger = document.getElementById("repeatedLoadTrigger");
+  const repeatedLoadingState = document.getElementById("repeatedLoadingState");
+  const repeatedSkeletonState = document.getElementById("repeatedSkeletonState");
+  const timelineLogList = document.getElementById("timelineLogList");
+  const timelineLogScroll = document.getElementById("timelineLogScroll");
+  const timelineLoadTrigger = document.getElementById("timelineLoadTrigger");
+  const timelineLoadingState = document.getElementById("timelineLoadingState");
+  const timelineSkeletonState = document.getElementById("timelineSkeletonState");
   let harSelectionTriggered = false;
+  let submitScheduled = false;
   const harRequestCache = new Map();
   const isHarValidationPage = !!document.getElementById("harValidationFile") || !!harRequestDetailsRoot;
 
@@ -382,7 +448,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (form) {
-    form.addEventListener("submit", () => {
+    form.addEventListener("submit", (event) => {
+      if (!submitScheduled) {
+        event.preventDefault();
+      }
+
       if (fromUtcInput) {
         fromUtcInput.value = toUtcIso(fromInput ? fromInput.value : "");
       }
@@ -436,6 +506,13 @@ document.addEventListener("DOMContentLoaded", () => {
         overlay.classList.remove("d-none");
         overlay.setAttribute("aria-hidden", "false");
       }
+
+      if (!submitScheduled) {
+        submitScheduled = true;
+        window.setTimeout(() => {
+          form.submit();
+        }, 40);
+      }
     });
   }
 
@@ -467,6 +544,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  initializeCopyButtons(document);
+
   if (useLocalCheckbox && uploadInput) {
     const toggleUploadState = () => {
       uploadInput.disabled = useLocalCheckbox.checked;
@@ -488,6 +567,283 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".utc-display").forEach((element) => {
     formatUtcElement(element, dateTimeFormatter);
   });
+
+  const renderTimelineEntry = (entry) => {
+    const article = document.createElement("article");
+    article.className = "timeline-log-item";
+
+    const preview = (entry.message || "").length > 180
+      ? `${entry.message.slice(0, 180)}...`
+      : (entry.message || "");
+
+    article.innerHTML = `
+      <div class="timeline-log-item__header">
+        <div class="timeline-log-item__title" title="${escapeHtml(entry.message || "")}">${escapeHtml(preview)}</div>
+        <span class="severity-pill severity-pill--timeline">${escapeHtml(entry.severity || "")}</span>
+      </div>
+      <div class="timeline-log-item__meta">
+        <span class="utc-display" data-utc="${escapeHtml(entry.timestamp || "")}">${escapeHtml(entry.timestamp || "")}</span>
+        <span>${escapeHtml(entry.service || "")}</span>
+        <span>${escapeHtml(entry.fileName || "")}:${escapeHtml(String(entry.lineNumber ?? ""))}</span>
+        ${(entry.correlationId || "").length > 0 ? `<span>Corr: ${escapeHtml(entry.correlationId)}</span>` : ""}
+      </div>
+      <details class="details-block">
+        <summary>Show entire message</summary>
+        <div class="details-content-wrap">
+          <button type="button" class="copy-button" data-copy-from-details="true">Copy full message</button>
+          <div class="details-content">${escapeHtml(entry.rawLine || "")}</div>
+        </div>
+      </details>`;
+
+    article.querySelectorAll(".utc-display").forEach((element) => {
+      formatUtcElement(element, dateTimeFormatter);
+    });
+    initializeCopyButtons(article);
+    return article;
+  };
+
+  const renderRepeatedLogEntry = (entry) => {
+    const article = document.createElement("article");
+    article.className = "repeated-log-item";
+
+    article.innerHTML = `
+      <div class="repeated-log-item__header">
+        <div class="repeated-log-item__title">${escapeHtml(entry.signature || "")}</div>
+        <span class="pill-number">${escapeHtml(String(entry.count ?? ""))}</span>
+      </div>
+      <div class="repeated-log-item__meta">
+        <span>Service: ${escapeHtml(entry.service || "")}</span>
+        <span>Severity: ${escapeHtml(entry.severity || "")}</span>
+      </div>
+      <details class="details-block">
+        <summary>Show entire message</summary>
+        <div class="details-content-wrap">
+          <button type="button" class="copy-button" data-copy-from-details="true">Copy full message</button>
+          <div class="details-content">${escapeHtml(entry.exampleMessage || "")}</div>
+        </div>
+      </details>`;
+
+    initializeCopyButtons(article);
+    return article;
+  };
+
+  if (repeatedLogList && repeatedLogScroll && repeatedLoadTrigger && repeatedLoadingState && form) {
+    const antiForgeryTokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+    const repeatedServiceFilter = document.getElementById("repeatedServiceFilter");
+    let repeatedLoading = false;
+    let repeatedResetLoading = false;
+
+    const updateRepeatedLoadState = (hasMore) => {
+      repeatedLogList.dataset.hasMore = hasMore ? "true" : "false";
+      repeatedLoadTrigger.classList.toggle("d-none", !hasMore);
+      repeatedLoadingState.classList.toggle("d-none", !hasMore && !repeatedResetLoading);
+      repeatedLoadingState.textContent = hasMore
+        ? "Scroll down to load more repeated logs..."
+        : "All repeated logs are loaded.";
+    };
+
+    const fetchRepeatedLogEntries = async (skip, reset) => {
+      if (repeatedLoading || (repeatedLogList.dataset.hasMore !== "true" && !reset)) {
+        return;
+      }
+
+      const analysisSessionId = repeatedLogList.dataset.analysisSessionId || "";
+      const loadedCount = reset ? 0 : Number.parseInt(repeatedLogList.dataset.loadedCount || "0", 10);
+      if (!analysisSessionId) {
+        updateRepeatedLoadState(false);
+        return;
+      }
+
+      repeatedLoading = true;
+      repeatedResetLoading = reset;
+      repeatedLoadingState.classList.remove("d-none");
+      repeatedLoadingState.textContent = reset ? "Refreshing repeated logs..." : "Loading more repeated logs...";
+      if (repeatedSkeletonState) {
+        repeatedSkeletonState.classList.toggle("d-none", !reset);
+      }
+      if (reset) {
+        repeatedLogList.innerHTML = "";
+      }
+
+      const requestBody = new URLSearchParams();
+      requestBody.set("AnalysisSessionId", analysisSessionId);
+      requestBody.set("Skip", String(loadedCount));
+      requestBody.set("Service", repeatedServiceFilter instanceof HTMLSelectElement ? repeatedServiceFilter.value : "");
+      if (antiForgeryTokenInput instanceof HTMLInputElement) {
+        requestBody.set("__RequestVerificationToken", antiForgeryTokenInput.value);
+      }
+
+      try {
+        const response = await fetch("/Home/RepeatedLogEntries", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+          },
+          body: requestBody.toString()
+        });
+
+        if (!response.ok) {
+          throw new Error(`Repeated logs request failed with status ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const entries = Array.isArray(payload.entries) ? payload.entries : [];
+        entries.forEach((entry) => {
+          repeatedLogList.appendChild(renderRepeatedLogEntry(entry));
+        });
+
+        const returnedCount = Number.parseInt(String(payload.returnedCount || entries.length), 10);
+        const nextLoadedCount = loadedCount + Math.max(returnedCount, entries.length);
+        repeatedLogList.dataset.loadedCount = String(nextLoadedCount);
+        repeatedLogList.dataset.totalCount = String(payload.totalCount || repeatedLogList.dataset.totalCount || "0");
+        updateRepeatedLoadState(Boolean(payload.hasMore));
+
+        if (reset && entries.length === 0) {
+          repeatedLoadingState.textContent = "No repeated logs are available for the selected service.";
+          repeatedLoadingState.classList.remove("d-none");
+        }
+      } catch {
+        repeatedLoadingState.textContent = "Unable to load more repeated logs right now.";
+        repeatedLoadingState.classList.remove("d-none");
+      } finally {
+        if (repeatedSkeletonState) {
+          repeatedSkeletonState.classList.add("d-none");
+        }
+        repeatedLoading = false;
+        repeatedResetLoading = false;
+      }
+    };
+
+    updateRepeatedLoadState(repeatedLogList.dataset.hasMore === "true");
+
+    const repeatedObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        fetchRepeatedLogEntries(Number.parseInt(repeatedLogList.dataset.loadedCount || "0", 10), false);
+      }
+    }, {
+      root: repeatedLogScroll,
+      rootMargin: "200px 0px 200px 0px"
+    });
+
+    repeatedObserver.observe(repeatedLoadTrigger);
+
+    repeatedQueryControls.forEach((control) => {
+      control.addEventListener("change", () => {
+        fetchRepeatedLogEntries(0, true);
+      });
+    });
+  }
+
+  if (timelineLogList && timelineLogScroll && timelineLoadTrigger && timelineLoadingState && form) {
+    const antiForgeryTokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+    const timelineServiceFilter = document.getElementById("timelineServiceFilter");
+    const timelineSortSelect = document.querySelector('select[name="Filter.TimelineSortOrder"]');
+    let timelineLoading = false;
+    let timelineResetLoading = false;
+
+    const updateTimelineLoadState = (hasMore) => {
+      timelineLogList.dataset.hasMore = hasMore ? "true" : "false";
+      timelineLoadTrigger.classList.toggle("d-none", !hasMore);
+      timelineLoadingState.classList.toggle("d-none", !hasMore && !timelineResetLoading);
+      timelineLoadingState.textContent = hasMore
+        ? "Scroll down to load more timeline logs..."
+        : "All timeline logs are loaded.";
+    };
+
+    const fetchTimelineEntries = async (skip, reset) => {
+      if (timelineLoading || timelineLogList.dataset.hasMore !== "true") {
+        if (!reset) {
+          return;
+        }
+      }
+
+      const analysisSessionId = timelineLogList.dataset.analysisSessionId || "";
+      const loadedCount = reset ? 0 : Number.parseInt(timelineLogList.dataset.loadedCount || "0", 10);
+      if (!analysisSessionId) {
+        updateTimelineLoadState(false);
+        return;
+      }
+
+      timelineLoading = true;
+      timelineResetLoading = reset;
+      timelineLoadingState.classList.remove("d-none");
+      timelineLoadingState.textContent = reset ? "Refreshing timeline logs..." : "Loading more timeline logs...";
+      if (timelineSkeletonState) {
+        timelineSkeletonState.classList.toggle("d-none", !reset);
+      }
+      if (reset) {
+        timelineLogList.innerHTML = "";
+      }
+
+      const requestBody = new URLSearchParams();
+      requestBody.set("AnalysisSessionId", analysisSessionId);
+      requestBody.set("Skip", String(loadedCount));
+      requestBody.set("TimelineService", timelineServiceFilter instanceof HTMLSelectElement ? timelineServiceFilter.value : "");
+      requestBody.set("TimelineSortOrder", timelineSortSelect instanceof HTMLSelectElement ? timelineSortSelect.value : "desc");
+      if (antiForgeryTokenInput instanceof HTMLInputElement) {
+        requestBody.set("__RequestVerificationToken", antiForgeryTokenInput.value);
+      }
+
+      try {
+        const response = await fetch("/Home/TimelineEntries", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+          },
+          body: requestBody.toString()
+        });
+
+        if (!response.ok) {
+          throw new Error(`Timeline request failed with status ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const entries = Array.isArray(payload.entries) ? payload.entries : [];
+        entries.forEach((entry) => {
+          timelineLogList.appendChild(renderTimelineEntry(entry));
+        });
+
+        const returnedCount = Number.parseInt(String(payload.returnedCount || entries.length), 10);
+        const nextLoadedCount = loadedCount + Math.max(returnedCount, entries.length);
+        timelineLogList.dataset.loadedCount = String(nextLoadedCount);
+        timelineLogList.dataset.totalCount = String(payload.totalCount || timelineLogList.dataset.totalCount || "0");
+        updateTimelineLoadState(Boolean(payload.hasMore));
+
+        if (reset && entries.length === 0) {
+          timelineLoadingState.textContent = "No timeline log lines are available for the selected filters.";
+          timelineLoadingState.classList.remove("d-none");
+        }
+      } catch {
+        timelineLoadingState.textContent = "Unable to load more timeline logs right now.";
+        timelineLoadingState.classList.remove("d-none");
+      } finally {
+        if (timelineSkeletonState) {
+          timelineSkeletonState.classList.add("d-none");
+        }
+        timelineLoading = false;
+        timelineResetLoading = false;
+      }
+    };
+
+    updateTimelineLoadState(timelineLogList.dataset.hasMore === "true");
+
+    const timelineObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        fetchTimelineEntries(Number.parseInt(timelineLogList.dataset.loadedCount || "0", 10), false);
+      }
+    }, {
+      root: timelineLogScroll,
+      rootMargin: "200px 0px 200px 0px"
+    });
+
+    timelineObserver.observe(timelineLoadTrigger);
+
+    timelineQueryControls.forEach((control) => {
+      control.addEventListener("change", () => {
+        fetchTimelineEntries(0, true);
+      });
+    });
+  }
 
   const applyDetailFilter = (groupName, selectedService) => {
     const group = document.querySelector(`.filterable-group[data-group="${groupName}"]`);

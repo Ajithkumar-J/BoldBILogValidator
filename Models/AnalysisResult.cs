@@ -4,6 +4,8 @@ public class AnalysisResult
 {
     public AnalysisFilterInput Filter { get; set; } = new();
 
+    public string AnalysisSessionId { get; set; } = string.Empty;
+
     public string? UploadSessionId { get; set; }
 
     public int UploadedFileCount { get; set; }
@@ -36,9 +38,23 @@ public class AnalysisResult
 
     public List<GroupedLogSummary> GroupedLogSummaries { get; set; } = [];
 
+    public int RepeatedLogTotalCount { get; set; }
+
+    public int RepeatedLogPageSize { get; set; }
+
+    public bool HasMoreRepeatedLogs { get; set; }
+
     public List<HarApiRecord> HarApis { get; set; } = [];
 
     public List<ParsedLogEntry> HighlightedEntries { get; set; } = [];
+
+    public List<ParsedLogEntry> TimelineEntries { get; set; } = [];
+
+    public int TimelineTotalCount { get; set; }
+
+    public int TimelinePageSize { get; set; }
+
+    public bool HasMoreTimelineEntries { get; set; }
 }
 
 public class ServiceSummary

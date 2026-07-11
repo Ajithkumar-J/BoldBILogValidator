@@ -489,9 +489,16 @@ body {
 
 .note-stack,
 .linked-list,
-.repeated-log-list {
+.repeated-log-list,
+.timeline-log-list {
   display: grid;
   gap: 0.85rem;
+}
+
+.log-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .note-card {
@@ -500,7 +507,7 @@ body {
 
 .summary-grid-panels {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(22rem, 0.8fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   margin-top: 1rem;
 }
@@ -612,6 +619,13 @@ body {
   margin-bottom: 1rem;
 }
 
+.logs-panel__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: flex-end;
+}
+
 .detail-filter {
   min-width: 13rem;
 }
@@ -628,6 +642,21 @@ body {
   padding: 0.95rem 1rem;
 }
 
+.repeated-log-scroll {
+  max-height: 72vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.25rem;
+}
+
+.timeline-log-item {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+}
+
 .repeated-log-item__header {
   display: flex;
   align-items: flex-start;
@@ -635,10 +664,102 @@ body {
   gap: 1rem;
 }
 
+.timeline-log-item__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.timeline-log-item__header > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.timeline-log-item__title {
+  color: var(--text-strong);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .repeated-log-item__meta {
   margin-top: 0.35rem;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.timeline-log-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.timeline-log-scroll {
+  max-height: 72vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.25rem;
+}
+
+.timeline-loading-state {
+  margin-top: 0.9rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.repeated-loading-state {
+  margin-top: 0.9rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.timeline-load-trigger {
+  height: 1px;
+}
+
+.repeated-load-trigger {
+  height: 1px;
+}
+
+.timeline-skeleton-state {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.repeated-skeleton-state {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.timeline-skeleton-card {
+  height: 10rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(191, 210, 227, 0.52);
+  background: linear-gradient(90deg, rgba(240, 246, 252, 0.9) 25%, rgba(255, 255, 255, 0.95) 50%, rgba(240, 246, 252, 0.9) 75%);
+  background-size: 200% 100%;
+  animation: timeline-skeleton-shimmer 1.3s linear infinite;
+}
+
+.repeated-skeleton-card {
+  height: 13rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(191, 210, 227, 0.52);
+  background: linear-gradient(90deg, rgba(240, 246, 252, 0.9) 25%, rgba(255, 255, 255, 0.95) 50%, rgba(240, 246, 252, 0.9) 75%);
+  background-size: 200% 100%;
+  animation: timeline-skeleton-shimmer 1.3s linear infinite;
+}
+
+@keyframes timeline-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .details-block {
@@ -651,6 +772,38 @@ body {
   cursor: pointer;
   color: var(--blue);
   font-weight: 700;
+}
+
+.details-content-wrap {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.copy-button {
+  display: inline-flex;
+  align-self: flex-end;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.65rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid rgba(47, 124, 246, 0.24);
+  border-radius: 999px;
+  background: rgba(47, 124, 246, 0.08);
+  color: var(--blue);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.copy-button:hover {
+  background: rgba(47, 124, 246, 0.15);
+}
+
+.severity-pill--timeline {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.72rem;
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
 .details-content,
@@ -1317,9 +1470,15 @@ body {
   .logs-panel__header,
   .dashboard-panel__header,
   .linked-item,
-  .repeated-log-item__header {
+  .repeated-log-item__header,
+  .timeline-log-item__header,
+  .logs-panel__controls {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .log-panels-grid {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-form__scroll {

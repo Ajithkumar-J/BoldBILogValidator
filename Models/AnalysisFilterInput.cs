@@ -28,6 +28,10 @@ public class AnalysisFilterInput
 
     public string? Keyword { get; set; }
 
+    public string? TimelineService { get; set; }
+
+    public string TimelineSortOrder { get; set; } = "desc";
+
     public DateTime? From { get; set; }
 
     public DateTime? To { get; set; }
@@ -36,7 +40,7 @@ public class AnalysisFilterInput
 
     public bool IncludeDebugInfo { get; set; } = true;
 
-    public bool EnableConcurrentInsights { get; set; } = true;
+    public bool EnableConcurrentInsights { get; set; }
 
     public List<IFormFile> LogFiles { get; set; } = [];
 

@@ -38,6 +38,22 @@ public class HomeController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TimelineEntries([FromForm] TimelinePageRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _logAnalysisService.GetTimelineEntriesAsync(request, cancellationToken);
+        return Json(result);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RepeatedLogEntries([FromForm] RepeatedLogPageRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _logAnalysisService.GetRepeatedLogEntriesAsync(request, cancellationToken);
+        return Json(result);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     [RequestFormLimits(MultipartBodyLengthLimit = 268_435_456)]
     public async Task<IActionResult> HarValidation(HarValidationPageViewModel model, CancellationToken cancellationToken)
     {

@@ -12,6 +12,9 @@ namespace BoldLogValidator.Services;
 public partial class LogAnalysisService : ILogAnalysisService
 {
     private const int HighlightLimit = 150;
+    private const int TimelinePageSize = 100;
+    private const int RepeatedLogPageSize = 100;
+    private const int TimelineCacheMinutes = 20;
     private readonly string _activeUploadRoot;
     private readonly string _activeUploadLogRoot;
     private readonly string _activeUploadHarRoot;
@@ -32,10 +35,18 @@ public partial class LogAnalysisService : ILogAnalysisService
 
     public async Task<AnalysisResult> AnalyzeAsync(AnalysisFilterInput filter, CancellationToken cancellationToken = default)
     {
-        var shouldUseLocalLogPath = filter.LogFiles.Count == 0 && !string.IsNullOrWhiteSpace(filter.LocalLogPath);
+        var hasNewUpload = filter.LogFiles.Count > 0;
+        var hasRequestedCachedUpload = !string.IsNullOrWhiteSpace(filter.UploadSessionId)
+            && !string.Equals(filter.UploadSessionId, "not-uploaded-yet", StringComparison.OrdinalIgnoreCase);
+        var hasCachedUploadedLogs = HasSavedUploadedLogs();
+        var shouldUseLocalLogPath = !hasNewUpload
+            && !hasRequestedCachedUpload
+            && !hasCachedUploadedLogs
+            && !string.IsNullOrWhiteSpace(filter.LocalLogPath);
 
         var result = new AnalysisResult
         {
+            AnalysisSessionId = Guid.NewGuid().ToString("N"),
             Filter = filter,
             UploadSessionId = filter.UploadSessionId,
             UploadedFileCount = filter.LogFiles.Count,
@@ -173,6 +184,12 @@ public partial class LogAnalysisService : ILogAnalysisService
         result.FilteredEntryCount = filteredEntries.Count;
         result.FilteredErrorCount = filteredEntries.Count(static e => IsError(e.Severity));
         result.HighlightedEntries = filteredEntries.Take(HighlightLimit).ToList();
+        CacheTimelineEntries(result.AnalysisSessionId, filteredEntries);
+        var timelinePage = BuildTimelinePageResponse(filteredEntries, filter.TimelineService, filter.TimelineSortOrder, 0);
+        result.TimelineEntries = timelinePage.Entries;
+        result.TimelineTotalCount = timelinePage.TotalCount;
+        result.TimelinePageSize = TimelinePageSize;
+        result.HasMoreTimelineEntries = timelinePage.HasMore;
 
         result.ServiceSummaries = filteredEntries
             .GroupBy(static entry => entry.Service, StringComparer.OrdinalIgnoreCase)
@@ -221,7 +238,7 @@ public partial class LogAnalysisService : ILogAnalysisService
             .Take(20)
             .ToList();
 
-        result.GroupedLogSummaries = filteredEntries
+        var groupedLogSummaries = filteredEntries
             .GroupBy(entry => new
             {
                 ServiceKey = entry.Service.ToUpperInvariant(),
@@ -241,6 +258,12 @@ public partial class LogAnalysisService : ILogAnalysisService
             .ThenBy(static summary => summary.Service)
             .ThenBy(static summary => summary.Signature)
             .ToList();
+        CacheRepeatedLogEntries(result.AnalysisSessionId, groupedLogSummaries);
+        var repeatedLogPage = BuildRepeatedLogPageResponse(groupedLogSummaries, null, 0);
+        result.GroupedLogSummaries = repeatedLogPage.Entries;
+        result.RepeatedLogTotalCount = repeatedLogPage.TotalCount;
+        result.RepeatedLogPageSize = RepeatedLogPageSize;
+        result.HasMoreRepeatedLogs = repeatedLogPage.HasMore;
 
         if (filter.EnableConcurrentInsights)
         {
@@ -258,8 +281,46 @@ public partial class LogAnalysisService : ILogAnalysisService
         {
             result.Notes.Add("No log lines matched the selected filters. Try widening the date range or clearing identifier filters.");
         }
+        else if (result.TimelineTotalCount > TimelinePageSize)
+        {
+            result.Notes.Add($"The timeline panel loads {TimelinePageSize} log lines at a time to keep large investigations responsive while you scroll.");
+        }
 
         return result;
+    }
+
+    public Task<TimelinePageResponse> GetTimelineEntriesAsync(TimelinePageRequest request, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(request.AnalysisSessionId))
+        {
+            return Task.FromResult(new TimelinePageResponse());
+        }
+
+        if (!_memoryCache.TryGetValue(GetTimelineCacheKey(request.AnalysisSessionId), out List<ParsedLogEntry>? cachedEntries) || cachedEntries == null)
+        {
+            return Task.FromResult(new TimelinePageResponse());
+        }
+
+        return Task.FromResult(BuildTimelinePageResponse(cachedEntries, request.TimelineService, request.TimelineSortOrder, request.Skip));
+    }
+
+    public Task<RepeatedLogPageResponse> GetRepeatedLogEntriesAsync(RepeatedLogPageRequest request, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(request.AnalysisSessionId))
+        {
+            return Task.FromResult(new RepeatedLogPageResponse());
+        }
+
+        if (!_memoryCache.TryGetValue(GetRepeatedLogCacheKey(request.AnalysisSessionId), out List<GroupedLogSummary>? cachedEntries) || cachedEntries == null)
+        {
+            return Task.FromResult(new RepeatedLogPageResponse());
+        }
+
+        return Task.FromResult(BuildRepeatedLogPageResponse(cachedEntries, request.Service, request.Skip));
     }
 
     public async Task<HarValidationResult> GetHarValidationAsync(HarValidationFilterInput filter, CancellationToken cancellationToken = default)
@@ -1325,6 +1386,119 @@ public partial class LogAnalysisService : ILogAnalysisService
 
         var savedId = File.ReadAllText(_activeUploadMetadataPath).Trim();
         return string.IsNullOrWhiteSpace(savedId) ? "not-uploaded-yet" : savedId;
+    }
+
+    private bool HasSavedUploadedLogs()
+    {
+        return Directory.Exists(_activeUploadLogRoot)
+            && Directory.EnumerateFiles(_activeUploadLogRoot, "*.txt*", SearchOption.AllDirectories)
+                .Any(path =>
+                {
+                    var fileName = Path.GetFileName(path);
+                    return fileName.StartsWith("errors", StringComparison.OrdinalIgnoreCase)
+                        || fileName.StartsWith("debug", StringComparison.OrdinalIgnoreCase);
+                });
+    }
+
+    private void CacheTimelineEntries(string analysisSessionId, List<ParsedLogEntry> entries)
+    {
+        _memoryCache.Set(
+            GetTimelineCacheKey(analysisSessionId),
+            entries,
+            new MemoryCacheEntryOptions
+            {
+                SlidingExpiration = TimeSpan.FromMinutes(TimelineCacheMinutes),
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(TimelineCacheMinutes)
+            });
+    }
+
+    private static string GetTimelineCacheKey(string analysisSessionId)
+    {
+        return $"timeline:{analysisSessionId}";
+    }
+
+    private void CacheRepeatedLogEntries(string analysisSessionId, List<GroupedLogSummary> entries)
+    {
+        _memoryCache.Set(
+            GetRepeatedLogCacheKey(analysisSessionId),
+            entries,
+            new MemoryCacheEntryOptions
+            {
+                SlidingExpiration = TimeSpan.FromMinutes(TimelineCacheMinutes),
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(TimelineCacheMinutes)
+            });
+    }
+
+    private static string GetRepeatedLogCacheKey(string analysisSessionId)
+    {
+        return $"repeated:{analysisSessionId}";
+    }
+
+    private static TimelinePageResponse BuildTimelinePageResponse(
+        List<ParsedLogEntry> entries,
+        string? timelineService,
+        string? timelineSortOrder,
+        int skip)
+    {
+        var effectiveTimelineService = string.IsNullOrWhiteSpace(timelineService)
+            || string.Equals(timelineService, "all", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : timelineService;
+
+        var filteredTimelineEntries = entries
+            .Where(entry => string.IsNullOrWhiteSpace(effectiveTimelineService)
+                || entry.Service.Equals(effectiveTimelineService, StringComparison.OrdinalIgnoreCase));
+
+        var orderedTimelineEntries = (string.Equals(timelineSortOrder, "asc", StringComparison.OrdinalIgnoreCase)
+                ? filteredTimelineEntries.OrderBy(static entry => entry.Timestamp)
+                : filteredTimelineEntries.OrderByDescending(static entry => entry.Timestamp))
+            .ThenBy(static entry => entry.Service)
+            .ThenBy(static entry => entry.LineNumber)
+            .ToList();
+
+        var safeSkip = Math.Max(skip, 0);
+        var pageEntries = orderedTimelineEntries
+            .Skip(safeSkip)
+            .Take(TimelinePageSize)
+            .ToList();
+
+        return new TimelinePageResponse
+        {
+            Entries = pageEntries,
+            ReturnedCount = pageEntries.Count,
+            TotalCount = orderedTimelineEntries.Count,
+            HasMore = safeSkip + pageEntries.Count < orderedTimelineEntries.Count
+        };
+    }
+
+    private static RepeatedLogPageResponse BuildRepeatedLogPageResponse(
+        List<GroupedLogSummary> entries,
+        string? service,
+        int skip)
+    {
+        var effectiveService = string.IsNullOrWhiteSpace(service)
+            || string.Equals(service, "all", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : service;
+
+        var filteredEntries = entries
+            .Where(entry => string.IsNullOrWhiteSpace(effectiveService)
+                || entry.Service.Equals(effectiveService, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var safeSkip = Math.Max(skip, 0);
+        var pageEntries = filteredEntries
+            .Skip(safeSkip)
+            .Take(RepeatedLogPageSize)
+            .ToList();
+
+        return new RepeatedLogPageResponse
+        {
+            Entries = pageEntries,
+            ReturnedCount = pageEntries.Count,
+            TotalCount = filteredEntries.Count,
+            HasMore = safeSkip + pageEntries.Count < filteredEntries.Count
+        };
     }
 
     private static void ClearDirectory(string directoryPath)

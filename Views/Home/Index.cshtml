@@ -8,13 +8,19 @@
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(static service => service)
         .ToList() ?? [];
+    var timelineServices = result?.ServiceSummaries
+        .Select(static summary => summary.Service)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(static service => service)
+        .ToList() ?? [];
     var statusTime = DateTime.Now.ToString("dd MMM yyyy, hh:mm:ss tt");
 }
 
 <section class="analyzer-dashboard-simple">
     <aside class="dashboard-sidebar">
-        <form asp-action="Analyze" method="post" enctype="multipart/form-data" class="analysis-form dashboard-form">
+        <form id="analysisForm" asp-action="Analyze" method="post" enctype="multipart/form-data" class="analysis-form dashboard-form">
             @Html.AntiForgeryToken()
+            <input type="hidden" id="analysisSessionId" value="@Model.Result?.AnalysisSessionId" />
             <input asp-for="Filter.UploadSessionId" type="hidden" />
             <input asp-for="Filter.BrowserTimeZone" type="hidden" />
             <input asp-for="Filter.FromUtc" type="hidden" />
@@ -114,14 +120,6 @@
                         </span>
                         <input asp-for="Filter.IncludeDebugInfo" class="form-check-input toggle-switch" />
                     </label>
-
-                    <label class="toggle-list-card">
-                        <span>
-                            <strong>Readable linked failures</strong>
-                            <small>Show cross-service grouped insights and explanations</small>
-                        </span>
-                        <input asp-for="Filter.EnableConcurrentInsights" class="form-check-input toggle-switch" />
-                    </label>
                 </section>
 
                 <section class="sidebar-card sidebar-card--plain">
@@ -131,8 +129,21 @@
                         <option value="targeted">Targeted Validation</option>
                     </select>
 
-                    <label asp-for="Filter.SpecificService" class="form-label">Specific Service Hint</label>
-                    <input asp-for="Filter.SpecificService" class="form-control" placeholder="Example: bi.dataservice" />
+                    <label asp-for="Filter.SpecificService" class="form-label">Specific Service</label>
+                    <select asp-for="Filter.SpecificService" class="form-select">
+                        <option value="">All services</option>
+                        @if (timelineServices.Count == 0)
+                        {
+                            <option value="" disabled>Analyze once to load services</option>
+                        }
+                        else
+                        {
+                            @foreach (var service in timelineServices)
+                            {
+                                <option value="@service">@service</option>
+                            }
+                        }
+                    </select>
                 </section>
             </div>
 
@@ -216,7 +227,7 @@
             <div class="summary-panel__header">
                 <div>
                     <h2>Entire Summary</h2>
-                    <p>Overall view of matched log entries, service spread, linked failures, and request correlation.</p>
+                    <p>Overall view of matched log entries, service spread, and request correlation.</p>
                 </div>
             </div>
 
@@ -278,86 +289,168 @@
                         </table>
                     </div>
                 </section>
-
-                <section class="dashboard-panel">
-                    <div class="dashboard-panel__header">
-                        <div>
-                            <h2>Cross-Service Linked Failures</h2>
-                            <p>Failures that appear across multiple services in the same request flow.</p>
-                        </div>
-                    </div>
-
-                    @if (result == null || result.ConcurrentInsights.Count == 0)
-                    {
-                        <div class="empty-state">No linked cross-service failures matched the current filters.</div>
-                    }
-                    else
-                    {
-                        <div class="linked-list">
-                            @foreach (var insight in result.ConcurrentInsights.Take(6))
-                            {
-                                <article class="linked-item">
-                                    <div class="linked-item__left">
-                                        <span class="linked-icon">!</span>
-                                        <div>
-                                            <div class="linked-title">@insight.Summary</div>
-                                            <div class="linked-services">@insight.Services</div>
-                                            <div class="linked-meta">Occurrences: @insight.OccurrenceCount</div>
-                                        </div>
-                                    </div>
-                                    <span class="linked-count">@insight.OccurrenceCount</span>
-                                </article>
-                            }
-                        </div>
-                    }
-                </section>
             </section>
         </section>
 
-        <section class="logs-panel">
-            <div class="logs-panel__header">
-                <div>
-                    <h2>Repeated Logs</h2>
-                    <p>Choose a service to see every grouped log message for that service, sorted from the highest count down to single occurrences.</p>
+        <section class="log-panels-grid">
+            <section class="logs-panel">
+                <div class="logs-panel__header">
+                    <div>
+                        <h2>Repeated Logs</h2>
+                        <p>Choose a service to see every grouped log message for that service, sorted from the highest count down to single occurrences.</p>
+                    </div>
+                    <div class="detail-filter detail-filter--wide">
+                        <label class="form-label" for="repeatedServiceFilter">Service</label>
+                        <select id="repeatedServiceFilter" class="form-select repeated-query-control">
+                            <option value="">All services</option>
+                            @foreach (var service in repeatedServices)
+                            {
+                                <option value="@service">@service</option>
+                            }
+                        </select>
+                    </div>
                 </div>
-                <div class="detail-filter detail-filter--wide">
-                    <label class="form-label" for="repeatedServiceFilter">Service</label>
-                    <select id="repeatedServiceFilter" class="form-select detail-service-filter" data-target-group="repeated-logs">
-                        <option value="all">All services</option>
-                        @foreach (var service in repeatedServices)
-                        {
-                            <option value="@service">@service</option>
-                        }
-                    </select>
-                </div>
-            </div>
 
-            @if (result == null || result.GroupedLogSummaries.Count == 0)
-            {
-                <div class="empty-state">No grouped logs are available for the current analysis.</div>
-            }
-            else
-            {
-                <div class="repeated-log-list filterable-group" data-group="repeated-logs">
-                    @foreach (var groupedLog in result.GroupedLogSummaries)
-                    {
-                        <article class="repeated-log-item filterable-item" data-services="@groupedLog.Service">
-                            <div class="repeated-log-item__header">
-                                <div class="repeated-log-item__title">@groupedLog.Signature</div>
-                                <span class="pill-number">@groupedLog.Count</span>
-                            </div>
-                            <div class="repeated-log-item__meta">
-                                <span>Service: @groupedLog.Service</span>
-                                <span>Severity: @groupedLog.Severity</span>
-                            </div>
-                            <details class="details-block">
-                                <summary>Show entire message</summary>
-                                <div class="details-content">@groupedLog.ExampleMessage</div>
-                            </details>
-                        </article>
-                    }
+                @if (result == null || result.GroupedLogSummaries.Count == 0)
+                {
+                    <div class="empty-state">No grouped logs are available for the current analysis.</div>
+                }
+                else
+                {
+                    <div class="repeated-log-scroll" id="repeatedLogScroll">
+                    <div class="repeated-log-list"
+                         id="repeatedLogList"
+                         data-analysis-session-id="@result.AnalysisSessionId"
+                         data-loaded-count="@result.GroupedLogSummaries.Count"
+                         data-total-count="@result.RepeatedLogTotalCount"
+                         data-page-size="@result.RepeatedLogPageSize"
+                         data-has-more="@result.HasMoreRepeatedLogs.ToString().ToLowerInvariant()">
+                        @foreach (var groupedLog in result.GroupedLogSummaries)
+                        {
+                            <article class="repeated-log-item">
+                                <div class="repeated-log-item__header">
+                                    <div class="repeated-log-item__title">@groupedLog.Signature</div>
+                                    <span class="pill-number">@groupedLog.Count</span>
+                                </div>
+                                <div class="repeated-log-item__meta">
+                                    <span>Service: @groupedLog.Service</span>
+                                    <span>Severity: @groupedLog.Severity</span>
+                                </div>
+                                <details class="details-block">
+                                    <summary>Show entire message</summary>
+                                    <div class="details-content-wrap">
+                                        <button type="button" class="copy-button" data-copy-from-details="true">Copy full message</button>
+                                        <div class="details-content">@groupedLog.ExampleMessage</div>
+                                    </div>
+                                </details>
+                            </article>
+                        }
+                    </div>
+                    <div id="repeatedSkeletonState" class="repeated-skeleton-state d-none" aria-hidden="true">
+                        <div class="repeated-skeleton-card"></div>
+                        <div class="repeated-skeleton-card"></div>
+                        <div class="repeated-skeleton-card"></div>
+                    </div>
+                    <div id="repeatedLoadingState"
+                         class="repeated-loading-state @(result.HasMoreRepeatedLogs ? string.Empty : "d-none")">
+                        Scroll down to load more repeated logs...
+                    </div>
+                    <div id="repeatedLoadTrigger"
+                         class="repeated-load-trigger @(result.HasMoreRepeatedLogs ? string.Empty : "d-none")"
+                         aria-hidden="true"></div>
+                    </div>
+                }
+            </section>
+
+            <section class="logs-panel">
+                <div class="logs-panel__header">
+                    <div>
+                        <h2>Timeline Logs</h2>
+                        <p>Use this when the exact time is not known and you want to browse matched logs in time order.</p>
+                    </div>
+                    <div class="logs-panel__controls">
+                        <div class="detail-filter detail-filter--wide">
+                            <label asp-for="Filter.TimelineService" class="form-label">Service</label>
+                            <select id="timelineServiceFilter"
+                                    asp-for="Filter.TimelineService"
+                                    form="analysisForm"
+                                    class="form-select timeline-query-control">
+                                <option value="">All services</option>
+                                @foreach (var service in timelineServices)
+                                {
+                                    <option value="@service">@service</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="detail-filter detail-filter--wide">
+                            <label asp-for="Filter.TimelineSortOrder" class="form-label">Sort</label>
+                            <select asp-for="Filter.TimelineSortOrder" form="analysisForm" class="form-select timeline-query-control">
+                                <option value="desc">Latest first</option>
+                                <option value="asc">Oldest first</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-            }
+
+                @if (result == null || result.TimelineEntries.Count == 0)
+                {
+                    <div class="empty-state">No timeline log lines are available for the current analysis.</div>
+                }
+                else
+                {
+                    <div class="timeline-log-scroll"
+                         id="timelineLogScroll">
+                        <div class="timeline-log-list"
+                             id="timelineLogList"
+                             data-analysis-session-id="@result.AnalysisSessionId"
+                             data-loaded-count="@result.TimelineEntries.Count"
+                             data-total-count="@result.TimelineTotalCount"
+                             data-page-size="@result.TimelinePageSize"
+                             data-has-more="@result.HasMoreTimelineEntries.ToString().ToLowerInvariant()">
+                            @foreach (var entry in result.TimelineEntries)
+                            {
+                                var previewMessage = entry.Message.Length > 180
+                                    ? $"{entry.Message[..180]}..."
+                                    : entry.Message;
+                                <article class="timeline-log-item">
+                                    <div class="timeline-log-item__header">
+                                        <div class="timeline-log-item__title" title="@entry.Message">@previewMessage</div>
+                                        <span class="severity-pill severity-pill--timeline">@entry.Severity</span>
+                                    </div>
+                                    <div class="timeline-log-item__meta">
+                                        <span class="utc-display" data-utc="@entry.Timestamp.ToString("o")">@entry.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff 'UTC'")</span>
+                                        <span>@entry.Service</span>
+                                        <span>@entry.FileName:@entry.LineNumber</span>
+                                        @if (!string.IsNullOrWhiteSpace(entry.CorrelationId))
+                                        {
+                                            <span>Corr: @entry.CorrelationId</span>
+                                        }
+                                    </div>
+                                    <details class="details-block">
+                                        <summary>Show entire message</summary>
+                                        <div class="details-content-wrap">
+                                            <button type="button" class="copy-button" data-copy-from-details="true">Copy full message</button>
+                                            <div class="details-content">@entry.RawLine</div>
+                                        </div>
+                                    </details>
+                                </article>
+                            }
+                        </div>
+                        <div id="timelineSkeletonState" class="timeline-skeleton-state d-none" aria-hidden="true">
+                            <div class="timeline-skeleton-card"></div>
+                            <div class="timeline-skeleton-card"></div>
+                            <div class="timeline-skeleton-card"></div>
+                        </div>
+                        <div id="timelineLoadingState"
+                             class="timeline-loading-state @(result.HasMoreTimelineEntries ? string.Empty : "d-none")">
+                            Scroll down to load more timeline logs...
+                        </div>
+                        <div id="timelineLoadTrigger"
+                             class="timeline-load-trigger @(result.HasMoreTimelineEntries ? string.Empty : "d-none")"
+                             aria-hidden="true"></div>
+                    </div>
+                }
+            </section>
         </section>
     </div>
 </section>
