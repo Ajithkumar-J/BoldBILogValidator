@@ -14,6 +14,12 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = 1_073_741_824;
+    options.BufferBodyLengthLimit = 1_073_741_824;
+    options.ValueLengthLimit = int.MaxValue;
+    options.ValueCountLimit = int.MaxValue;
+    options.MultipartHeadersLengthLimit = 262_144;
+    options.MultipartBoundaryLengthLimit = 16_384;
+    options.MemoryBufferThreshold = 1_048_576;
 });
 var dataProtectionPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
 Directory.CreateDirectory(dataProtectionPath);

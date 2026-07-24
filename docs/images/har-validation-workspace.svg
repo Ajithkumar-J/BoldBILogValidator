@@ -1,0 +1,57 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#F2F8FF"/>
+  <rect x="20" y="20" width="1560" height="72" rx="24" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="44" y="63" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Bold Log Validator</text>
+  <text x="290" y="63" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Dashboard HAR validation preview</text>
+
+  <rect x="20" y="112" width="300" height="760" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="44" y="152" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">HAR SOURCE &amp; FILTERS</text>
+  <rect x="44" y="180" width="252" height="88" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="62" y="216" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Upload HAR file</text>
+  <text x="62" y="246" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Keyword, API type, method, status</text>
+  <rect x="44" y="292" width="252" height="118" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="62" y="326" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Dashboard context</text>
+  <text x="62" y="356" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Environment and dashboard path</text>
+  <rect x="44" y="434" width="252" height="172" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="62" y="468" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Phase 2 reconstruction</text>
+  <text x="62" y="498" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">ZIP / BBIX readiness</text>
+  <text x="62" y="528" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">external/serialization</text>
+  <text x="62" y="556" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">external/runtime</text>
+  <text x="62" y="584" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">external/designer-assets</text>
+  <rect x="44" y="760" width="252" height="72" rx="36" fill="#157C9B"/>
+  <text x="170" y="804" text-anchor="middle" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Analyze HAR</text>
+
+  <g>
+    <rect x="344" y="112" width="1236" height="120" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+    <text x="372" y="154" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">HAR Metrics</text>
+    <text x="372" y="188" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Total APIs, distinct endpoints, slow APIs, load-dashboard hits, and average response time.</text>
+  </g>
+
+  <g>
+    <rect x="344" y="252" width="620" height="306" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+    <text x="372" y="296" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Filtered API Requests</text>
+    <text x="372" y="330" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Lazy-loaded request list with category, method, status, and duration.</text>
+    <rect x="372" y="366" width="564" height="74" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+    <rect x="372" y="456" width="564" height="74" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  </g>
+
+  <g>
+    <rect x="984" y="252" width="596" height="180" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+    <text x="1012" y="296" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Request Overview</text>
+    <text x="1012" y="330" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Endpoint, method, duration, status, correlation id, and trace id.</text>
+  </g>
+
+  <g>
+    <rect x="984" y="452" width="596" height="180" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+    <text x="1012" y="496" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Transport Details</text>
+    <text x="1012" y="530" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Request headers, payload, query string, and response headers.</text>
+  </g>
+
+  <g>
+    <rect x="344" y="578" width="1236" height="294" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+    <text x="372" y="622" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">FORMATTED RESPONSE EXPLORER</text>
+    <text x="372" y="664" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Decoded Response Tree</text>
+    <text x="372" y="698" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Nested JSON parsing, expand/collapse helpers, and property/value filters for payload and response inspection.</text>
+    <rect x="372" y="732" width="1180" height="96" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  </g>
+</svg>

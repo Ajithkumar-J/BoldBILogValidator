@@ -45,6 +45,32 @@
                     </div>
 
                     <div class="control-group">
+                        <div class="control-group__title">Phase 2 Reconstruction</div>
+                        <div class="field-note mb-2">@(result?.ReconstructionInfo.ExtractionMode ?? "Fallback JSON parsing")</div>
+                        <div class="field-note mb-2">@(result?.ReconstructionInfo.StatusNote ?? "Upload and analyze a HAR file to unlock package generation.")</div>
+                        <div class="field-note mb-2">@(result?.ReconstructionInfo.BbixStatusNote ?? "BBIX readiness will appear after HAR parsing.")</div>
+                        <div class="field-note mb-2">
+                            Serialization folder:
+                            <strong>@(result?.ReconstructionInfo.SerializationFolderPath ?? "external/serialization")</strong>
+                        </div>
+                        <div class="field-note mb-2">Detected latest serialization DLLs: @(result?.ReconstructionInfo.SerializationAssemblyCount ?? 0)</div>
+                        <div class="field-note mb-2">
+                            Runtime folder:
+                            <strong>@(result?.ReconstructionInfo.RuntimeFolderPath ?? "external/runtime")</strong>
+                        </div>
+                        <div class="field-note mb-2">Detected runtime DLLs: @(result?.ReconstructionInfo.RuntimeAssemblyCount ?? 0)</div>
+                        <div class="field-note mb-2">
+                            Designer assets folder:
+                            <strong>@(result?.ReconstructionInfo.DesignerAssetsFolderPath ?? "external/designer-assets")</strong>
+                        </div>
+                        <div class="field-note mb-2">Designer assets detected: @((result?.ReconstructionInfo.DesignerAssetsDetected ?? false) ? "Yes" : "No")</div>
+                        @if (result?.ReconstructionInfo.PackageContents.Count > 0)
+                        {
+                            <div class="field-note">Package contents: @string.Join(", ", result.ReconstructionInfo.PackageContents)</div>
+                        }
+                    </div>
+
+                    <div class="control-group">
                         <div class="control-group__title">Search & API Filters</div>
 
                         <label asp-for="Filter.Keyword" class="form-label">Keyword Search</label>
@@ -108,6 +134,26 @@
 
                 <div class="form-actions har-filter-rail__actions">
                     <button type="submit" class="btn btn-primary btn-lg w-100">Analyze HAR</button>
+                    <button type="submit"
+                            class="btn btn-outline-primary btn-lg w-100 mt-2"
+                            formaction="@Url.Action("GenerateHarPackage", "Home")"
+                            formmethod="post"
+                            data-download-submit="true"
+                            data-loading-title="Generating dashboard package..."
+                            data-loading-description="The app is decoding the LoadDashboard response, splitting dashboard files, building datasource reports, and packaging the reconstruction ZIP."
+                            >
+                        Generate Reconstruction ZIP
+                    </button>
+                    <button type="submit"
+                            class="btn btn-outline-secondary btn-lg w-100 mt-2"
+                            formaction="@Url.Action("GenerateHarBbix", "Home")"
+                            formmethod="post"
+                            data-download-submit="true"
+                            data-loading-title="Generating BBIX package..."
+                            data-loading-description="The app is decoding the LoadDashboard response, building the reconstructed BBIX content, and preparing the downloadable file."
+                            disabled="@(result?.ReconstructionInfo.CanGenerateBbix == true ? null : "disabled")">
+                        @((result?.ReconstructionInfo.CanGenerateBbix ?? false) ? "Generate BBIX" : "Generate BBIX (LoadDashboard required)")
+                    </button>
                     <div id="harAnalyzeStatusText" class="action-note d-none" aria-live="polite"></div>
                 </div>
             </section>
@@ -206,7 +252,13 @@
                     }
                     else
                     {
-                        <div class="har-api-list">
+                        <div class="har-api-list"
+                             id="harApiList"
+                             data-analysis-session-id="@result.AnalysisSessionId"
+                             data-loaded-count="@result.FilteredApis.Count"
+                             data-total-count="@result.TotalFilteredApis"
+                             data-page-size="@result.ApiPageSize"
+                             data-has-more="@result.HasMoreFilteredApis.ToString().ToLowerInvariant()">
                             @foreach (var api in result.FilteredApis)
                             {
                                 var isActive = string.Equals(api.Key, Model.Filter.SelectedRequestKey, StringComparison.Ordinal);
@@ -230,6 +282,18 @@
                                     </div>
                                 </button>
                             }
+                            <div id="harApiLoadTrigger"
+                                 class="har-api-load-trigger @(result.HasMoreFilteredApis ? string.Empty : "d-none")"
+                                 aria-hidden="true"></div>
+                        </div>
+                        <div id="harApiSkeletonState" class="har-api-skeleton-state d-none" aria-hidden="true">
+                            <div class="har-api-skeleton-card"></div>
+                            <div class="har-api-skeleton-card"></div>
+                            <div class="har-api-skeleton-card"></div>
+                        </div>
+                        <div id="harApiLoadingState"
+                             class="har-api-loading-state @(result.HasMoreFilteredApis ? string.Empty : "d-none")">
+                            Scroll down to load more API requests...
                         </div>
                     }
                 </section>

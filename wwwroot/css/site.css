@@ -1197,6 +1197,32 @@ body {
   padding: 0.1rem 0.35rem 0.2rem 0.05rem;
 }
 
+.har-api-loading-state {
+  margin-top: 0.9rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.har-api-load-trigger {
+  height: 1px;
+}
+
+.har-api-skeleton-state {
+  display: grid;
+  gap: 0.95rem;
+  margin-top: 0.95rem;
+}
+
+.har-api-skeleton-card {
+  height: 8.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(191, 210, 227, 0.52);
+  background: linear-gradient(90deg, rgba(240, 246, 252, 0.9) 25%, rgba(255, 255, 255, 0.95) 50%, rgba(240, 246, 252, 0.9) 75%);
+  background-size: 200% 100%;
+  animation: timeline-skeleton-shimmer 1.3s linear infinite;
+}
+
 .har-api-item {
   width: 100%;
   text-align: left;

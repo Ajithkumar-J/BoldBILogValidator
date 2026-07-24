@@ -14,5 +14,13 @@ public interface ILogAnalysisService
 
     Task<HarValidationResult> GetHarValidationAsync(HarValidationFilterInput filter, CancellationToken cancellationToken = default);
 
+    Task<HarApiPageResponse> GetHarApiEntriesAsync(HarApiPageRequest request, CancellationToken cancellationToken = default);
+
     Task<HarRequestDetailsResult> GetHarRequestDetailsAsync(string? requestKey, CancellationToken cancellationToken = default);
+
+    Task<HarDashboardPackageExport> GenerateHarDashboardPackageAsync(
+        HarValidationFilterInput filter,
+        string? requestKey,
+        HarDashboardExportFormat exportFormat = HarDashboardExportFormat.Zip,
+        CancellationToken cancellationToken = default);
 }

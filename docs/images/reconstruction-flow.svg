@@ -1,0 +1,56 @@
+<svg width="1600" height="820" viewBox="0 0 1600 820" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="820" fill="#F2F8FF"/>
+  <text x="800" y="74" text-anchor="middle" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="36" font-weight="700">Dashboard Reconstruction Flow</text>
+
+  <rect x="80" y="150" width="250" height="120" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="205" y="198" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">1. Upload HAR</text>
+  <text x="205" y="232" text-anchor="middle" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Capture dashboard APIs</text>
+
+  <rect x="390" y="150" width="250" height="120" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="515" y="198" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">2. Find LoadDashboard</text>
+  <text x="515" y="232" text-anchor="middle" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Pick the rendering request</text>
+
+  <rect x="700" y="150" width="250" height="120" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="825" y="198" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">3. Decode JSON</text>
+  <text x="825" y="232" text-anchor="middle" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Response and payload trees</text>
+
+  <rect x="1010" y="150" width="250" height="120" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="1135" y="198" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">4. Build Package</text>
+  <text x="1135" y="232" text-anchor="middle" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Dashboard assets + schema</text>
+
+  <rect x="1320" y="150" width="200" height="120" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="1420" y="198" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">5. Export</text>
+  <text x="1420" y="232" text-anchor="middle" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">ZIP / BBIX</text>
+
+  <path d="M330 210H390" stroke="#7DB7D8" stroke-width="8" stroke-linecap="round"/>
+  <path d="M640 210H700" stroke="#7DB7D8" stroke-width="8" stroke-linecap="round"/>
+  <path d="M950 210H1010" stroke="#7DB7D8" stroke-width="8" stroke-linecap="round"/>
+  <path d="M1260 210H1320" stroke="#7DB7D8" stroke-width="8" stroke-linecap="round"/>
+
+  <rect x="150" y="370" width="1300" height="330" rx="36" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="190" y="430" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">Generated Output</text>
+
+  <rect x="190" y="470" width="280" height="180" rx="24" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="330" y="520" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Dashboard Files</text>
+  <text x="220" y="562" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- dashboard.json</text>
+  <text x="220" y="592" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- widgetdata.json</text>
+  <text x="220" y="622" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- filterdata.json</text>
+
+  <rect x="500" y="470" width="280" height="180" rx="24" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="640" y="520" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Datasource Artifacts</text>
+  <text x="530" y="562" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- datasource-schema.json</text>
+  <text x="530" y="592" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- SQL bootstrap guidance</text>
+  <text x="530" y="622" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- provider-specific notes</text>
+
+  <rect x="810" y="470" width="280" height="180" rx="24" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="950" y="520" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Support Workflow</text>
+  <text x="840" y="562" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">1. Recreate source data</text>
+  <text x="840" y="592" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">2. Create a dummy dashboard</text>
+  <text x="840" y="622" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">3. Replace generated files</text>
+
+  <rect x="1120" y="470" width="280" height="180" rx="24" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="1260" y="520" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Optional Inputs</text>
+  <text x="1150" y="562" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- external/serialization</text>
+  <text x="1150" y="592" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- external/runtime</text>
+  <text x="1150" y="622" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">- external/designer-assets</text>
+</svg>

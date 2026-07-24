@@ -63,10 +63,54 @@ public class HomeController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> HarApiEntries([FromForm] HarApiPageRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _logAnalysisService.GetHarApiEntriesAsync(request, cancellationToken);
+        return Json(result);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> HarRequestDetails([FromForm] string? requestKey, CancellationToken cancellationToken)
     {
         var model = await _logAnalysisService.GetHarRequestDetailsAsync(requestKey, cancellationToken);
         return PartialView("_HarRequestDetails", model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequestFormLimits(MultipartBodyLengthLimit = 268_435_456)]
+    public async Task<IActionResult> GenerateHarPackage(HarValidationPageViewModel model, CancellationToken cancellationToken)
+    {
+        var export = await _logAnalysisService.GenerateHarDashboardPackageAsync(
+            model.Filter,
+            model.Filter.SelectedRequestKey,
+            HarDashboardExportFormat.Zip,
+            cancellationToken);
+        if (!export.Success || export.Content.Length == 0)
+        {
+            return BadRequest(export.ErrorMessage ?? "Unable to generate the dashboard reconstruction package.");
+        }
+
+        return File(export.Content, export.ContentType, export.FileName);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequestFormLimits(MultipartBodyLengthLimit = 268_435_456)]
+    public async Task<IActionResult> GenerateHarBbix(HarValidationPageViewModel model, CancellationToken cancellationToken)
+    {
+        var export = await _logAnalysisService.GenerateHarDashboardPackageAsync(
+            model.Filter,
+            model.Filter.SelectedRequestKey,
+            HarDashboardExportFormat.Bbix,
+            cancellationToken);
+        if (!export.Success || export.Content.Length == 0)
+        {
+            return BadRequest(export.ErrorMessage ?? "Unable to generate the dashboard BBIX package.");
+        }
+
+        return File(export.Content, export.ContentType, export.FileName);
     }
 
     [HttpGet]

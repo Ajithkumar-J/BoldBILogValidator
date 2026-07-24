@@ -1,0 +1,58 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#F2F8FF"/>
+  <rect x="20" y="20" width="1560" height="72" rx="24" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="44" y="63" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Bold Log Validator</text>
+  <text x="290" y="63" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Analyzer workspace preview</text>
+
+  <rect x="20" y="112" width="300" height="760" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="44" y="152" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">SOURCE &amp; FILTERS</text>
+  <rect x="44" y="180" width="252" height="88" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="62" y="216" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Local path or logs upload</text>
+  <text x="62" y="246" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">C:\BoldServices\app_data\logs</text>
+  <rect x="44" y="292" width="252" height="110" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="62" y="326" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Time range &amp; identifiers</text>
+  <text x="62" y="356" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Correlation, trace, span, keyword</text>
+  <rect x="44" y="426" width="252" height="88" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  <text x="62" y="460" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Severity controls</text>
+  <text x="62" y="490" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Error/Fatal + Debug/Info</text>
+  <rect x="44" y="760" width="252" height="72" rx="36" fill="#157C9B"/>
+  <text x="170" y="804" text-anchor="middle" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Analyze Logs</text>
+
+  <rect x="344" y="112" width="1236" height="120" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+  <text x="372" y="154" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Summary Metrics</text>
+  <g>
+    <rect x="372" y="174" width="176" height="36" rx="18" fill="#E8F7FF" stroke="#A9D3EE"/>
+    <text x="460" y="197" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Cached Upload Active</text>
+    <rect x="566" y="174" width="176" height="36" rx="18" fill="#E8F7FF" stroke="#A9D3EE"/>
+    <text x="654" y="197" text-anchor="middle" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Browser Timezone</text>
+  </g>
+
+  <g>
+    <rect x="372" y="250" width="584" height="268" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+    <text x="400" y="294" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Service Summary</text>
+    <text x="400" y="328" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Grouped counts by service, errors, warnings, and top signatures.</text>
+    <line x1="400" y1="370" x2="928" y2="370" stroke="#D7E5F7"/>
+    <line x1="400" y1="420" x2="928" y2="420" stroke="#E8EFF8"/>
+    <line x1="400" y1="470" x2="928" y2="470" stroke="#E8EFF8"/>
+    <text x="400" y="402" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Service</text>
+    <text x="560" y="402" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Entries</text>
+    <text x="680" y="402" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Errors</text>
+    <text x="790" y="402" fill="#0D6F85" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Warnings</text>
+  </g>
+
+  <g>
+    <rect x="976" y="250" width="604" height="268" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+    <text x="1004" y="294" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Timeline Logs</text>
+    <text x="1004" y="328" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Paged timeline for browsing matching entries in time order.</text>
+    <rect x="1004" y="364" width="548" height="56" rx="18" fill="#F8FBFF" stroke="#D7E5F7"/>
+    <rect x="1004" y="438" width="548" height="56" rx="18" fill="#F8FBFF" stroke="#D7E5F7"/>
+  </g>
+
+  <g>
+    <rect x="344" y="542" width="1236" height="330" rx="28" fill="#FFFFFF" stroke="#D7E5F7"/>
+    <text x="372" y="586" fill="#1E3350" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Repeated Logs</text>
+    <text x="372" y="620" fill="#6B86A6" font-family="Segoe UI, Arial, sans-serif" font-size="18">Signatures grouped by repeated count, with full-message expansion and copy support.</text>
+    <rect x="372" y="656" width="1180" height="74" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+    <rect x="372" y="748" width="1180" height="74" rx="20" fill="#F8FBFF" stroke="#D7E5F7"/>
+  </g>
+</svg>

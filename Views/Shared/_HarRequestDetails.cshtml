@@ -5,6 +5,7 @@
 }
 
 <input type="hidden" data-har-selected-request-key value="@(Model.SelectedRequestKey ?? string.Empty)" />
+<input type="hidden" data-har-details-populated value="@(selectedApi != null ? "true" : "false")" />
 
 <div class="har-detail-stack">
     <section class="panel-card">

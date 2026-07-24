@@ -42,6 +42,8 @@ public class HarValidationResult
 {
     public HarValidationFilterInput Filter { get; set; } = new();
 
+    public string AnalysisSessionId { get; set; } = string.Empty;
+
     public string BrowserTimeZone { get; set; } = "UTC";
 
     public string? ActiveHarFileName { get; set; }
@@ -74,6 +76,12 @@ public class HarValidationResult
 
     public List<HarValidationApiItem> FilteredApis { get; set; } = [];
 
+    public int TotalFilteredApis { get; set; }
+
+    public int ApiPageSize { get; set; }
+
+    public bool HasMoreFilteredApis { get; set; }
+
     public HarValidationApiItem? SelectedApi { get; set; }
 
     public List<HarKeyValueItem> SelectedRequestHeaders { get; set; } = [];
@@ -93,6 +101,8 @@ public class HarValidationResult
     public JsonTreeNode? SelectedResponseTree { get; set; }
 
     public bool SelectedResponseWasNestedDecoded { get; set; }
+
+    public HarDashboardReconstructionInfo ReconstructionInfo { get; set; } = new();
 }
 
 public class HarRequestDetailsResult
@@ -153,6 +163,79 @@ public class HarValidationApiItem
     public bool IsLoadDashboard { get; set; }
 
     public bool IsSlow { get; set; }
+}
+
+public class HarApiPageRequest
+{
+    public string AnalysisSessionId { get; set; } = string.Empty;
+
+    public int Skip { get; set; }
+}
+
+public class HarApiPageResponse
+{
+    public List<HarValidationApiItem> Entries { get; set; } = [];
+
+    public int ReturnedCount { get; set; }
+
+    public int TotalCount { get; set; }
+
+    public bool HasMore { get; set; }
+}
+
+public class HarDashboardPackageRequest
+{
+    public string? RequestKey { get; set; }
+}
+
+public enum HarDashboardExportFormat
+{
+    Zip = 0,
+    Bbix = 1
+}
+
+public class HarDashboardPackageExport
+{
+    public bool Success { get; set; }
+
+    public string FileName { get; set; } = "dashboard-reconstruction.zip";
+
+    public string ContentType { get; set; } = "application/zip";
+
+    public byte[] Content { get; set; } = [];
+
+    public string? ErrorMessage { get; set; }
+}
+
+public class HarDashboardReconstructionInfo
+{
+    public bool HasLoadDashboardApi { get; set; }
+
+    public bool SelectedRequestIsLoadDashboard { get; set; }
+
+    public bool CanGeneratePackage { get; set; }
+
+    public bool CanGenerateBbix { get; set; }
+
+    public string ExtractionMode { get; set; } = "Fallback JSON parsing";
+
+    public string SerializationFolderPath { get; set; } = string.Empty;
+
+    public int SerializationAssemblyCount { get; set; }
+
+    public string RuntimeFolderPath { get; set; } = string.Empty;
+
+    public int RuntimeAssemblyCount { get; set; }
+
+    public string DesignerAssetsFolderPath { get; set; } = string.Empty;
+
+    public bool DesignerAssetsDetected { get; set; }
+
+    public string StatusNote { get; set; } = string.Empty;
+
+    public string BbixStatusNote { get; set; } = string.Empty;
+
+    public List<string> PackageContents { get; set; } = [];
 }
 
 public class HarKeyValueItem

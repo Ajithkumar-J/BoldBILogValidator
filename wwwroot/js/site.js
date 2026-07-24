@@ -119,13 +119,12 @@ function updateJsonNodePreview(node) {
   }
 
   const propertySelect = node.querySelector("[data-json-filter-property]");
-  const valueInput = node.querySelector("[data-json-filter-value]");
+  const filterValue = getJsonNodeFilterValue(node);
   const nodeType = normalizeJsonSearchText(node.dataset.jsonType || "");
   const originalPreview = previewElement.dataset.jsonOriginalPreview || previewElement.textContent || "";
   const hasActiveFilter = propertySelect instanceof HTMLSelectElement
-    && valueInput instanceof HTMLInputElement
     && propertySelect.value
-    && valueInput.value.trim().length > 0;
+    && filterValue.length > 0;
 
   if (!hasActiveFilter) {
     previewElement.textContent = originalPreview;
@@ -242,6 +241,90 @@ function populateJsonPropertyOptions(node) {
   }
 }
 
+function getJsonPropertyValues(node, propertyPath) {
+  const childrenContainer = getJsonNodeChildrenContainer(node);
+  if (!childrenContainer || !propertyPath) {
+    return [];
+  }
+
+  const normalizedPath = normalizeJsonSearchText(propertyPath);
+  const values = new Map();
+
+  Array.from(childrenContainer.children).forEach((child) => {
+    collectJsonLeafPaths(child).forEach((leaf) => {
+      if (normalizeJsonSearchText(leaf.path) !== normalizedPath) {
+        return;
+      }
+
+      if (!values.has(leaf.value)) {
+        values.set(leaf.value, leaf.value);
+      }
+    });
+  });
+
+  return Array.from(values.values()).sort((left, right) => left.localeCompare(right));
+}
+
+function populateJsonValueOptions(node) {
+  const propertySelect = node.querySelector("[data-json-filter-property]");
+  const valueSelect = node.querySelector("[data-json-filter-value-select]");
+  if (!(propertySelect instanceof HTMLSelectElement) || !(valueSelect instanceof HTMLSelectElement)) {
+    return;
+  }
+
+  const existingValue = valueSelect.value;
+  const values = getJsonPropertyValues(node, propertySelect.value);
+  valueSelect.innerHTML = "";
+
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = propertySelect.value ? "Choose value" : "Choose property first";
+  valueSelect.appendChild(defaultOption);
+
+  values.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value || "(empty)";
+    valueSelect.appendChild(option);
+  });
+
+  if (existingValue && values.includes(existingValue)) {
+    valueSelect.value = existingValue;
+  }
+}
+
+function syncJsonFilterInputMode(node) {
+  const operatorSelect = node.querySelector("[data-json-filter-operator]");
+  const valueSelect = node.querySelector("[data-json-filter-value-select]");
+  const valueInput = node.querySelector("[data-json-filter-value]");
+  if (!(operatorSelect instanceof HTMLSelectElement) ||
+      !(valueSelect instanceof HTMLSelectElement) ||
+      !(valueInput instanceof HTMLInputElement)) {
+    return;
+  }
+
+  const useSelect = (operatorSelect.value || "equals") === "equals";
+  valueSelect.classList.toggle("d-none", !useSelect);
+  valueInput.classList.toggle("d-none", useSelect);
+}
+
+function getJsonNodeFilterValue(node) {
+  const operatorSelect = node.querySelector("[data-json-filter-operator]");
+  const valueSelect = node.querySelector("[data-json-filter-value-select]");
+  const valueInput = node.querySelector("[data-json-filter-value]");
+  const operator = operatorSelect instanceof HTMLSelectElement
+    ? (operatorSelect.value || "equals")
+    : "equals";
+
+  if (operator === "equals" && valueSelect instanceof HTMLSelectElement) {
+    return (valueSelect.value || "").trim();
+  }
+
+  return valueInput instanceof HTMLInputElement
+    ? valueInput.value.trim()
+    : "";
+}
+
 function matchesJsonCandidate(child, propertyPath, operator, filterValue) {
   if (!propertyPath || !filterValue) {
     return true;
@@ -267,19 +350,17 @@ function matchesJsonCandidate(child, propertyPath, operator, filterValue) {
 function applyJsonObjectFilter(node) {
   const propertySelect = node.querySelector("[data-json-filter-property]");
   const operatorSelect = node.querySelector("[data-json-filter-operator]");
-  const valueInput = node.querySelector("[data-json-filter-value]");
   const childrenContainer = getJsonNodeChildrenContainer(node);
 
   if (!(propertySelect instanceof HTMLSelectElement) ||
       !(operatorSelect instanceof HTMLSelectElement) ||
-      !(valueInput instanceof HTMLInputElement) ||
       !childrenContainer) {
     return;
   }
 
   const propertyPath = propertySelect.value;
   const operator = operatorSelect.value || "equals";
-  const filterValue = valueInput.value;
+  const filterValue = getJsonNodeFilterValue(node);
 
   Array.from(childrenContainer.children).forEach((child) => {
     if (!(child instanceof HTMLElement)) {
@@ -336,10 +417,13 @@ function initializeJsonNodeControls(root) {
     const collapseButton = node.querySelector("[data-json-collapse]");
     const propertySelect = node.querySelector("[data-json-filter-property]");
     const operatorSelect = node.querySelector("[data-json-filter-operator]");
+    const valueSelect = node.querySelector("[data-json-filter-value-select]");
     const valueInput = node.querySelector("[data-json-filter-value]");
     const clearButton = node.querySelector("[data-json-search-clear]");
 
     populateJsonPropertyOptions(node);
+    populateJsonValueOptions(node);
+    syncJsonFilterInputMode(node);
 
     expandButton?.addEventListener("click", () => {
       const childrenContainer = getJsonNodeChildrenContainer(node);
@@ -369,10 +453,22 @@ function initializeJsonNodeControls(root) {
     });
 
     propertySelect?.addEventListener("change", () => {
+      if (valueSelect instanceof HTMLSelectElement) {
+        valueSelect.value = "";
+      }
+      if (valueInput instanceof HTMLInputElement) {
+        valueInput.value = "";
+      }
+      populateJsonValueOptions(node);
       applyJsonObjectFilter(node);
     });
 
     operatorSelect?.addEventListener("change", () => {
+      syncJsonFilterInputMode(node);
+      applyJsonObjectFilter(node);
+    });
+
+    valueSelect?.addEventListener("change", () => {
       applyJsonObjectFilter(node);
     });
 
@@ -383,13 +479,17 @@ function initializeJsonNodeControls(root) {
     clearButton?.addEventListener("click", () => {
       if (!(propertySelect instanceof HTMLSelectElement) ||
           !(operatorSelect instanceof HTMLSelectElement) ||
-          !(valueInput instanceof HTMLInputElement)) {
+          !(valueInput instanceof HTMLInputElement) ||
+          !(valueSelect instanceof HTMLSelectElement)) {
         return;
       }
 
       propertySelect.value = "";
       operatorSelect.value = "equals";
+      valueSelect.value = "";
       valueInput.value = "";
+      populateJsonValueOptions(node);
+      syncJsonFilterInputMode(node);
       const childrenContainer = getJsonNodeChildrenContainer(node);
       if (!childrenContainer) {
         return;
@@ -407,7 +507,9 @@ function initializeJsonNodeControls(root) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const form = document.querySelector("form");
+  const form = document.getElementById("analysisForm")
+    || document.querySelector(".har-validation-form")
+    || document.querySelector('form[action*="RawView"]');
   const overlay = document.getElementById("analysisLoadingOverlay");
   const loadingTitle = document.getElementById("loadingTitle");
   const loadingDescription = document.getElementById("loadingDescription");
@@ -428,6 +530,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const clearButtons = document.querySelectorAll(".input-clear-button");
   const harSelectButtons = document.querySelectorAll("[data-har-select]");
   const harRequestDetailsRoot = document.getElementById("harRequestDetailsRoot");
+  const harApiList = document.getElementById("harApiList");
+  const harApiLoadTrigger = document.getElementById("harApiLoadTrigger");
+  const harApiLoadingState = document.getElementById("harApiLoadingState");
+  const harApiSkeletonState = document.getElementById("harApiSkeletonState");
   const repeatedLogList = document.getElementById("repeatedLogList");
   const repeatedLogScroll = document.getElementById("repeatedLogScroll");
   const repeatedLoadTrigger = document.getElementById("repeatedLoadTrigger");
@@ -438,8 +544,110 @@ document.addEventListener("DOMContentLoaded", () => {
   const timelineLoadTrigger = document.getElementById("timelineLoadTrigger");
   const timelineLoadingState = document.getElementById("timelineLoadingState");
   const timelineSkeletonState = document.getElementById("timelineSkeletonState");
+  const restoreSubmitterState = (button, originalText) => {
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    button.disabled = false;
+    button.textContent = originalText;
+  };
+
+  const hideOverlayState = () => {
+    if (overlay) {
+      overlay.classList.add("d-none");
+      overlay.setAttribute("aria-hidden", "true");
+    }
+
+    if (analyzeStatusText) {
+      analyzeStatusText.classList.add("d-none");
+      analyzeStatusText.textContent = "";
+    }
+  };
+
+  const triggerBrowserDownload = (blob, fileName) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = fileName || "dashboard-reconstruction.zip";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+  };
+
+  const extractDownloadFileName = (response) => {
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utfMatch && utfMatch[1]) {
+      return decodeURIComponent(utfMatch[1]);
+    }
+
+    const plainMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+    return plainMatch && plainMatch[1] ? plainMatch[1] : "dashboard-reconstruction.zip";
+  };
+
+  const handleDownloadSubmit = async (submitter) => {
+    if (!(form instanceof HTMLFormElement) || !(submitter instanceof HTMLButtonElement)) {
+      return false;
+    }
+
+    const originalText = submitter.textContent || "Generate Reconstruction Package";
+    const formData = new FormData(form);
+    const endpoint = submitter.formAction || form.action;
+    const method = submitter.formMethod || form.method || "post";
+
+    submitter.disabled = true;
+    submitter.textContent = "Generating...";
+
+    if (analyzeStatusText) {
+      analyzeStatusText.classList.remove("d-none");
+      analyzeStatusText.textContent = "Generating the dashboard reconstruction package from the cached HAR response...";
+    }
+
+    if (overlay) {
+      if (loadingTitle) {
+        loadingTitle.textContent = submitter.dataset.loadingTitle || "Generating dashboard package...";
+      }
+
+      if (loadingDescription) {
+        loadingDescription.textContent = submitter.dataset.loadingDescription || "The app is generating the reconstruction package. Please wait.";
+      }
+
+      overlay.classList.remove("d-none");
+      overlay.setAttribute("aria-hidden", "false");
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: method.toUpperCase(),
+        body: formData,
+        credentials: "same-origin"
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Download failed with status ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      triggerBrowserDownload(blob, extractDownloadFileName(response));
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to generate the reconstruction package right now.";
+      if (analyzeStatusText) {
+        analyzeStatusText.classList.remove("d-none");
+        analyzeStatusText.textContent = "Package generation failed. Please try again.";
+      }
+
+      window.alert(message);
+      return false;
+    } finally {
+      hideOverlayState();
+      restoreSubmitterState(submitter, originalText);
+    }
+  };
   let harSelectionTriggered = false;
-  let submitScheduled = false;
   const harRequestCache = new Map();
   const isHarValidationPage = !!document.getElementById("harValidationFile") || !!harRequestDetailsRoot;
 
@@ -449,8 +657,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (form) {
     form.addEventListener("submit", (event) => {
-      if (!submitScheduled) {
+      const submitter = event.submitter instanceof HTMLButtonElement
+        ? event.submitter
+        : submitButton;
+
+      if (submitter instanceof HTMLButtonElement && submitter.dataset.downloadSubmit === "true") {
         event.preventDefault();
+        void handleDownloadSubmit(submitter);
+        return;
       }
 
       if (fromUtcInput) {
@@ -463,16 +677,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const isUploadSubmit = (uploadInput && uploadInput.files && uploadInput.files.length > 0)
         || (harInput && harInput.files && harInput.files.length > 0);
+      const customLoadingTitle = submitter instanceof HTMLButtonElement ? (submitter.dataset.loadingTitle || "") : "";
+      const customLoadingDescription = submitter instanceof HTMLButtonElement ? (submitter.dataset.loadingDescription || "") : "";
 
-      if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.textContent = isUploadSubmit ? "Uploading..." : "Analyzing...";
+      if (submitter instanceof HTMLButtonElement) {
+        submitter.disabled = true;
+        submitter.textContent = customLoadingTitle
+          ? "Generating..."
+          : isUploadSubmit ? "Uploading..." : "Analyzing...";
       }
 
       if (analyzeStatusText) {
         analyzeStatusText.classList.remove("d-none");
         if (harSelectionTriggered) {
           analyzeStatusText.textContent = "Loading the selected API request details...";
+        } else if (customLoadingTitle) {
+          analyzeStatusText.textContent = "Generating the dashboard reconstruction package from the cached HAR response...";
         } else if (isHarValidationPage) {
           analyzeStatusText.textContent = isUploadSubmit
             ? "Uploading the HAR file and preparing dashboard API validation..."
@@ -484,9 +704,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      if (overlay && (isUploadSubmit || harSelectionTriggered)) {
+      if (overlay && (isUploadSubmit || harSelectionTriggered || customLoadingTitle)) {
         if (loadingTitle) {
-          loadingTitle.textContent = harSelectionTriggered
+          loadingTitle.textContent = customLoadingTitle
+            ? customLoadingTitle
+            : harSelectionTriggered
             ? "Loading API request details..."
             : isHarValidationPage
               ? "Uploading and analyzing HAR..."
@@ -494,7 +716,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (loadingDescription) {
-          if (harSelectionTriggered) {
+          if (customLoadingDescription) {
+            loadingDescription.textContent = customLoadingDescription;
+          } else if (harSelectionTriggered) {
             loadingDescription.textContent = "The app is applying your HAR filters and preparing the selected request, headers, payload, and decoded response tree. Please wait.";
           } else if (isHarValidationPage) {
             loadingDescription.textContent = "The app is saving the HAR file, reading the API entries, applying your filters, and preparing the dashboard validation summary. Please wait until the upload and analysis complete.";
@@ -507,11 +731,14 @@ document.addEventListener("DOMContentLoaded", () => {
         overlay.setAttribute("aria-hidden", "false");
       }
 
-      if (!submitScheduled) {
-        submitScheduled = true;
-        window.setTimeout(() => {
-          form.submit();
-        }, 40);
+      if (submitter instanceof HTMLButtonElement) {
+        if (submitter.hasAttribute("formaction") && submitter.formAction) {
+          form.action = submitter.formAction;
+        }
+
+        if (submitter.hasAttribute("formmethod") && submitter.formMethod) {
+          form.method = submitter.formMethod;
+        }
       }
     });
   }
@@ -625,6 +852,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initializeCopyButtons(article);
     return article;
+  };
+
+  const renderHarApiEntry = (api, selectedRequestKey) => {
+    const button = document.createElement("button");
+    const methodClass = (api.method || "get").toLowerCase();
+    const statusClass = Number(api.statusCode || 0) >= 400 ? "error" : "ok";
+    button.type = "button";
+    button.className = `har-api-item ${selectedRequestKey === (api.key || "") ? "har-api-item--active" : ""}`;
+    button.dataset.harSelect = "true";
+    button.dataset.requestKey = api.key || "";
+    button.innerHTML = `
+      <div class="har-api-item__top">
+        <span class="har-method har-method--${escapeHtml(methodClass)}">${escapeHtml(api.method || "")}</span>
+        <span class="har-status har-status--${statusClass}">${escapeHtml(String(api.statusCode ?? "-"))}</span>
+        <span class="har-duration">${escapeHtml(String(api.durationMs ?? 0))} ms</span>
+      </div>
+      <div class="har-api-item__path">${escapeHtml(api.displayPath || "")}</div>
+      <div class="har-api-item__meta">
+        <span>${escapeHtml(api.contentType || "")}</span>
+        <span>${escapeHtml(api.category || "")}</span>
+        ${api.isLoadDashboard ? '<span class="service-pill">LoadDashboard</span>' : ""}
+      </div>`;
+    return button;
   };
 
   if (repeatedLogList && repeatedLogScroll && repeatedLoadTrigger && repeatedLoadingState && form) {
@@ -923,7 +1173,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const setHarActiveButton = (requestKey) => {
-    harSelectButtons.forEach((button) => {
+    document.querySelectorAll("[data-har-select]").forEach((button) => {
       if (!(button instanceof HTMLElement)) {
         return;
       }
@@ -938,7 +1188,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const selectedKeyField = harRequestDetailsRoot.querySelector("[data-har-selected-request-key]");
-    if (!(selectedKeyField instanceof HTMLInputElement) || !selectedKeyField.value) {
+    const populatedField = harRequestDetailsRoot.querySelector("[data-har-details-populated]");
+    const hasPopulatedDetails = populatedField instanceof HTMLInputElement
+      && populatedField.value === "true";
+
+    if (!(selectedKeyField instanceof HTMLInputElement) || !selectedKeyField.value || !hasPopulatedDetails) {
       return;
     }
 
@@ -963,95 +1217,204 @@ document.addEventListener("DOMContentLoaded", () => {
   cacheCurrentHarDetails();
   updateHarSelectedRequestKey();
 
-  harSelectButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      if (!form || !(button instanceof HTMLButtonElement) || !selectedRequestKeyInput || !harRequestDetailsRoot) {
-        return;
-      }
+  const loadHarRequestDetails = async (requestKey, preferredTab) => {
+    if (!form || !selectedRequestKeyInput || !harRequestDetailsRoot) {
+      return;
+    }
 
-      const requestKey = button.dataset.requestKey || "";
-      if (!requestKey) {
-        return;
-      }
+    if (!requestKey) {
+      return;
+    }
 
-      const currentSelectedKey = selectedRequestKeyInput.value;
-      if (currentSelectedKey === requestKey && harRequestCache.has(requestKey)) {
-        setHarActiveButton(requestKey);
-        return;
-      }
-
-      const activeTab = getActiveHarTab();
+    const currentSelectedKey = selectedRequestKeyInput.value;
+    if (currentSelectedKey === requestKey && harRequestCache.has(requestKey)) {
       setHarActiveButton(requestKey);
+      return;
+    }
 
-      if (harRequestCache.has(requestKey)) {
-        renderHarDetailsHtml(harRequestCache.get(requestKey), activeTab);
-        selectedRequestKeyInput.value = requestKey;
+    const activeTab = preferredTab || getActiveHarTab();
+    setHarActiveButton(requestKey);
+
+    if (harRequestCache.has(requestKey)) {
+      renderHarDetailsHtml(harRequestCache.get(requestKey), activeTab);
+      selectedRequestKeyInput.value = requestKey;
+      return;
+    }
+
+    const antiForgeryTokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+    if (!(antiForgeryTokenInput instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const endpoint = harRequestDetailsRoot.dataset.harDetailsEndpoint || form.getAttribute("action") || "";
+    if (!endpoint) {
+      return;
+    }
+
+    harSelectionTriggered = true;
+
+    if (analyzeStatusText) {
+      analyzeStatusText.classList.remove("d-none");
+      analyzeStatusText.textContent = "Loading the selected API request details...";
+    }
+
+    if (overlay) {
+      if (loadingTitle) {
+        loadingTitle.textContent = "Loading API request details...";
+      }
+
+      if (loadingDescription) {
+        loadingDescription.textContent = "The app is reading the selected HAR request, parsing payload and response JSON, and preparing the detail panels. Please wait.";
+      }
+
+      overlay.classList.remove("d-none");
+      overlay.setAttribute("aria-hidden", "false");
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        body: new URLSearchParams({
+          __RequestVerificationToken: antiForgeryTokenInput.value,
+          requestKey
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HAR request details failed with status ${response.status}`);
+      }
+
+      const html = await response.text();
+      harRequestCache.set(requestKey, html);
+      selectedRequestKeyInput.value = requestKey;
+      renderHarDetailsHtml(html, activeTab);
+    } catch (error) {
+      console.error(error);
+      if (analyzeStatusText) {
+        analyzeStatusText.classList.remove("d-none");
+        analyzeStatusText.textContent = "Could not load the selected API details. Please try again.";
+      }
+    } finally {
+      harSelectionTriggered = false;
+      if (overlay) {
+        overlay.classList.add("d-none");
+        overlay.setAttribute("aria-hidden", "true");
+      }
+    }
+  };
+
+  document.addEventListener("click", (event) => {
+    const trigger = event.target instanceof HTMLElement ? event.target.closest("[data-har-select]") : null;
+    if (!(trigger instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    loadHarRequestDetails(trigger.dataset.requestKey || "", getActiveHarTab());
+  });
+
+  if (selectedRequestKeyInput && selectedRequestKeyInput.value && !harRequestCache.has(selectedRequestKeyInput.value)) {
+    window.setTimeout(() => {
+      loadHarRequestDetails(selectedRequestKeyInput.value, "request-headers");
+    }, 60);
+  }
+
+  if (harApiList && harApiLoadTrigger && harApiLoadingState && form) {
+    const antiForgeryTokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+    let harApiLoading = false;
+
+    const updateHarApiLoadState = (hasMore) => {
+      harApiList.dataset.hasMore = hasMore ? "true" : "false";
+      harApiLoadTrigger.classList.toggle("d-none", !hasMore);
+      harApiLoadingState.classList.toggle("d-none", !hasMore);
+      if (hasMore) {
+        harApiLoadingState.textContent = "Scroll down to load more API requests...";
+      }
+    };
+
+    const loadMoreHarApis = async () => {
+      if (harApiLoading || harApiList.dataset.hasMore !== "true") {
         return;
       }
 
-      const antiForgeryTokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
       if (!(antiForgeryTokenInput instanceof HTMLInputElement)) {
         return;
       }
 
-      const endpoint = harRequestDetailsRoot.dataset.harDetailsEndpoint || form.getAttribute("action") || "";
-      if (!endpoint) {
+      const analysisSessionId = harApiList.dataset.analysisSessionId || "";
+      const loadedCount = Number.parseInt(harApiList.dataset.loadedCount || "0", 10);
+      if (!analysisSessionId) {
+        updateHarApiLoadState(false);
         return;
       }
 
-      harSelectionTriggered = true;
-
-      if (analyzeStatusText) {
-        analyzeStatusText.classList.remove("d-none");
-        analyzeStatusText.textContent = "Loading the selected API request details...";
+      harApiLoading = true;
+      harApiLoadingState.classList.remove("d-none");
+      harApiLoadingState.textContent = "Loading more API requests...";
+      if (harApiSkeletonState) {
+        harApiSkeletonState.classList.remove("d-none");
       }
 
-      if (overlay) {
-        if (loadingTitle) {
-          loadingTitle.textContent = "Loading API request details...";
-        }
-
-        if (loadingDescription) {
-          loadingDescription.textContent = "The app is reading the selected HAR request, parsing payload and response JSON, and preparing the detail panels. Please wait.";
-        }
-
-        overlay.classList.remove("d-none");
-        overlay.setAttribute("aria-hidden", "false");
-      }
+      const requestBody = new URLSearchParams();
+      requestBody.set("AnalysisSessionId", analysisSessionId);
+      requestBody.set("Skip", String(loadedCount));
+      requestBody.set("__RequestVerificationToken", antiForgeryTokenInput.value);
 
       try {
-        const response = await fetch(endpoint, {
+        const response = await fetch("/Home/HarApiEntries", {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
           },
-          body: new URLSearchParams({
-            __RequestVerificationToken: antiForgeryTokenInput.value,
-            requestKey
-          })
+          body: requestBody.toString()
         });
 
         if (!response.ok) {
-          throw new Error(`HAR request details failed with status ${response.status}`);
+          throw new Error(`HAR API request failed with status ${response.status}`);
         }
 
-        const html = await response.text();
-        harRequestCache.set(requestKey, html);
-        selectedRequestKeyInput.value = requestKey;
-        renderHarDetailsHtml(html, activeTab);
+        const payload = await response.json();
+        const entries = Array.isArray(payload.entries) ? payload.entries : [];
+        const selectedRequestKey = selectedRequestKeyInput ? selectedRequestKeyInput.value : "";
+        entries.forEach((api) => {
+          harApiList.appendChild(renderHarApiEntry(api, selectedRequestKey));
+        });
+
+        const returnedCount = Number.parseInt(String(payload.returnedCount || entries.length), 10);
+        const nextLoadedCount = loadedCount + Math.max(returnedCount, entries.length);
+        harApiList.dataset.loadedCount = String(nextLoadedCount);
+        harApiList.dataset.totalCount = String(payload.totalCount || harApiList.dataset.totalCount || "0");
+        updateHarApiLoadState(Boolean(payload.hasMore));
+
+        if (!payload.hasMore && entries.length === 0) {
+          harApiLoadingState.textContent = "All API requests are loaded.";
+          harApiLoadingState.classList.remove("d-none");
+        }
       } catch (error) {
         console.error(error);
-        if (analyzeStatusText) {
-          analyzeStatusText.classList.remove("d-none");
-          analyzeStatusText.textContent = "Could not load the selected API details. Please try again.";
-        }
+        harApiLoadingState.textContent = "Unable to load more API requests right now.";
+        harApiLoadingState.classList.remove("d-none");
       } finally {
-        harSelectionTriggered = false;
-        if (overlay) {
-          overlay.classList.add("d-none");
-          overlay.setAttribute("aria-hidden", "true");
+        harApiLoading = false;
+        if (harApiSkeletonState) {
+          harApiSkeletonState.classList.add("d-none");
         }
       }
+    };
+
+    updateHarApiLoadState(harApiList.dataset.hasMore === "true");
+
+    const harApiObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        loadMoreHarApis();
+      }
+    }, {
+      root: harApiList,
+      rootMargin: "200px 0px 200px 0px"
     });
-  });
+
+    harApiObserver.observe(harApiLoadTrigger);
+  }
 });

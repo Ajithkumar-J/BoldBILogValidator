@@ -18,7 +18,7 @@
 
 <section class="analyzer-dashboard-simple">
     <aside class="dashboard-sidebar">
-        <form id="analysisForm" asp-action="Analyze" method="post" enctype="multipart/form-data" class="analysis-form dashboard-form">
+        <form id="analysisForm" asp-controller="Home" asp-action="Analyze" method="post" enctype="multipart/form-data" class="analysis-form dashboard-form">
             @Html.AntiForgeryToken()
             <input type="hidden" id="analysisSessionId" value="@Model.Result?.AnalysisSessionId" />
             <input asp-for="Filter.UploadSessionId" type="hidden" />
@@ -148,7 +148,7 @@
             </div>
 
             <div class="form-actions dashboard-form__actions dashboard-form__actions--sticky">
-                <button type="submit" class="btn btn-primary btn-lg w-100">Analyze Logs</button>
+                <button type="submit" formaction="@Url.Action("Analyze", "Home")" class="btn btn-primary btn-lg w-100">Analyze Logs</button>
                 <div class="dashboard-form__subnote">Results will use the cached upload above.</div>
                 <div id="analyzeStatusText" class="action-note d-none" aria-live="polite"></div>
             </div>
